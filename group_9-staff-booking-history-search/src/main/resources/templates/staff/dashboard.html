@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<th:block th:replace="~{staff/layout :: layout('Dashboard', ~{::content}, ~{::scripts})}">
+    <th:block th:fragment="content">
+        <div class="card">
+            <div class="card-header">
+                <h2>Suất chiếu hôm nay &amp; 3 ngày tới</h2>
+            </div>
+            <div class="card-body table-wrapper">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Phim</th>
+                        <th>Phòng</th>
+                        <th>Bắt đầu</th>
+                        <th>Đã bán</th>
+                        <th>Đang giữ</th>
+                        <th>Còn lại</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="showtime : ${showtimes}">
+                        <td th:text="${showtime.movieTitle}">Movie</td>
+                        <td th:text="${showtime.auditoriumName}">Room</td>
+                        <td th:text="${#temporals.format(showtime.startTime, 'dd/MM HH:mm')}">Time</td>
+                        <td th:text="${showtime.soldSeats}">0</td>
+                        <td th:text="${showtime.heldSeats}">0</td>
+                        <td th:text="${showtime.availableSeats}">0</td>
+                        <td>
+                            <a th:href="@{|/staff/bookings/new?showtimeId=${showtime.showtimeId}|}" class="btn-secondary">
+                                Đặt vé
+                            </a>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </th:block>
+    <th:block th:fragment="scripts"></th:block>
+</th:block>
+</html>

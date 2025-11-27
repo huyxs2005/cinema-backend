@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<th:block th:replace="~{staff/layout :: layout('Đơn trong ngày', ~{::content}, ~{::scripts})}">
+    <th:block th:fragment="content">
+        <div class="card">
+            <div class="card-header">
+                <h2>Đơn đặt vé hôm nay</h2>
+            </div>
+            <div class="card-body table-wrapper">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Mã đơn</th>
+                        <th>Phim</th>
+                        <th>Suất</th>
+                        <th>Thanh toán</th>
+                        <th>Trạng thái</th>
+                        <th>NV</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="booking : ${bookings}">
+                        <td th:text="${booking.bookingCode}">CB001</td>
+                        <td th:text="${booking.movieTitle}">Movie</td>
+                        <td>
+                            <div th:text="${#temporals.format(booking.showtimeStart, 'dd/MM HH:mm')}"></div>
+                            <small th:text="${booking.auditoriumName}">Room</small>
+                        </td>
+                        <td>
+                            <div th:text="${booking.paymentMethod}">Cash</div>
+                            <small th:text="${booking.paymentStatus}">Paid</small>
+                        </td>
+                        <td th:text="${booking.bookingStatus}">Pending</td>
+                        <td th:text="${booking.staffName} ?: '-'">Staff</td>
+                        <td>
+                            <a th:href="@{|/staff/bookings/${booking.bookingCode}|}" class="btn-link">Chi tiết</a>
+                        </td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(bookings)}">
+                        <td colspan="7" class="empty-state">Chưa có đơn nào.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </th:block>
+    <th:block th:fragment="scripts"></th:block>
+</th:block>
+</html>

@@ -1,0 +1,137 @@
+﻿<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chi tiết phim - HUB</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/styles.css}">
+</head>
+<body>
+<th:block th:replace="fragments/header :: main"></th:block>
+<div id="movieLinkToast" class="profile-toast" role="alert" aria-live="polite"></div>
+
+<main class="content-shell" th:if="${movie != null}">
+    <div class="movie-detail-panel">
+        <div class="movie-detail-hero">
+            <div class="hero-backdrop"
+                 th:style="${movie.posterUrl != null} ? 'background-image:url(' + ${movie.posterUrl} + ');' : null"></div>
+            <div class="movie-detail-shell">
+                <div class="movie-detail-poster">
+                    <img th:src="${movie.posterUrl != null ? movie.posterUrl : 'https://via.placeholder.com/220x330.png?text=Poster'}"
+                         th:alt="${movie.title}"/>
+                </div>
+                <div class="movie-detail-content">
+                    <div class="movie-rating-row">
+                        <span class="rating-badge" th:text="${movie.ageRating != null ? movie.ageRating : 'P'}"></span>
+                        <a class="imdb-chip"
+                           th:if="${!#strings.isEmpty(movie.imdbUrl)}"
+                           th:href="${movie.imdbUrl}"
+                           target="_blank"
+                           rel="noopener">
+                            IMDb
+                        </a>
+                        <button type="button"
+                                class="imdb-chip missing-link"
+                                th:if="${#strings.isEmpty(movie.imdbUrl)}"
+                                data-missing-message="IMDB không tồn tại"
+                                data-toast-type="warning">
+                            IMDb
+                        </button>
+                    </div>
+                    <p class="rating-description" th:if="${movie.ageRatingDescription != null}" th:text="${movie.ageRatingDescription}"></p>
+                    <h1 th:text="${movie.title}">Tiêu đề phim</h1>
+                    <p class="movie-original-title" th:if="${!#strings.isEmpty(movie.originalTitle)}"
+                       th:text="${movie.originalTitle}"></p>
+                    <div class="movie-detail-meta" th:text="${movie.genres != null && !movie.genres.isEmpty() ? 'Thể loại: ' + #strings.arrayJoin(movie.genres.toArray(), ', ') : 'Thể loại đang cập nhật'}"></div>
+                    <div class="movie-detail-meta"
+                         th:text="${(movie.durationMinutes != null ? movie.durationMinutes + ' phút' : 'Thời lượng TBD') + ' • Khởi chiếu: ' + (movie.releaseDate != null ? #temporals.format(movie.releaseDate, 'dd/MM/yyyy') : 'Đang cập nhật')}"></div>
+                    <div class="movie-credits"
+                         th:if="${(movie.directors != null && !movie.directors.isEmpty()) or (movie.actors != null && !movie.actors.isEmpty())}">
+                        <div class="credit-block" th:if="${movie.directors != null && !movie.directors.isEmpty()}">
+                            <span class="credit-label">Đạo diễn</span>
+                            <p th:text="${#strings.arrayJoin(movie.directors.toArray(), ', ')}"></p>
+                        </div>
+                        <div class="credit-block" th:if="${movie.actors != null && !movie.actors.isEmpty()}">
+                            <span class="credit-label">Diễn viên</span>
+                            <p th:text="${#strings.arrayJoin(movie.actors.toArray(), ', ')}"></p>
+                        </div>
+                    </div>
+                    <p th:text="${movie.description != null ? movie.description : 'Nội dung sẽ được cập nhật trong thời gian tới.'}"></p>
+                    <div class="movie-detail-actions">
+                        <a class="btn btn-trailer"
+                           th:if="${!#strings.isEmpty(movie.trailerUrl)}"
+                           th:href="${movie.trailerUrl}"
+                           target="_blank">
+                            <span class="youtube-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" role="img" focusable="false">
+                                    <path fill="#FF0000" d="M23.498 6.186a3.003 3.003 0 0 0-2.117-2.12C19.563 3.5 12 3.5 12 3.5s-7.563 0-9.381.566A3.003 3.003 0 0 0 .502 6.186C0 8.01 0 12 0 12s0 3.99.502 5.814a3.003 3.003 0 0 0 2.117 2.12C4.437 20.5 12 20.5 12 20.5s7.563 0 9.381-.566a3.003 3.003 0 0 0 2.117-2.12C24 15.99 24 12 24 12s0-3.99-.502-5.814z"></path>
+                                    <path fill="#FFFFFF" d="M9.75 15.5V8.5L15.5 12l-5.75 3.5z"></path>
+                                </svg>
+                            </span>
+                            Xem trailer
+                        </a>
+                        <button type="button"
+                                class="btn btn-trailer missing-link"
+                                th:if="${#strings.isEmpty(movie.trailerUrl)}"
+                                data-missing-message="Trailer không tồn tại">
+                            <span class="youtube-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" role="img" focusable="false">
+                                    <path fill="#FF0000" d="M23.498 6.186a3.003 3.003 0 0 0-2.117-2.12C19.563 3.5 12 3.5 12 3.5s-7.563 0-9.381.566A3.003 3.003 0 0 0 .502 6.186C0 8.01 0 12 0 12s0 3.99.502 5.814a3.003 3.003 0 0 0 2.117 2.12C4.437 20.5 12 20.5 12 20.5s7.563 0 9.381-.566a3.003 3.003 0 0 0 2.117-2.12C24 15.99 24 12 24 12s0-3.99-.502-5.814z"></path>
+                                    <path fill="#FFFFFF" d="M9.75 15.5V8.5L15.5 12l-5.75 3.5z"></path>
+                                </svg>
+                            </span>
+                            Xem trailer
+                        </button>
+                    </div>
+                    <div class="movie-trailer-embed mt-4" th:if="${!#strings.isEmpty(movie.trailerEmbedUrl)}">
+                        <div class="ratio ratio-16x9">
+                            <iframe th:attr="src=${movie.trailerEmbedUrl}"
+                                    title="Trailer"
+                                    frameborder="0"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowfullscreen></iframe>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="movie-showtimes-section" th:attr="data-movie-id=${movie.id}">
+            <div class="showtimes-header">
+                <div>
+                    <h2>Lịch chiếu trong tuần</h2>
+                    <p>Chọn ngày để xem các suất chiếu trong 7 ngày tới.</p>
+                </div>
+            </div>
+            <div class="showtime-date-band">
+                <div class="showtime-date-strip" id="showtimeDateStrip">
+                    <div class="showtime-date-card loading">
+                        <span class="month-label">Đang...</span>
+                        <span class="date-number">--</span>
+                        <span class="weekday">Tải...</span>
+                    </div>
+                    <div class="showtime-date-card loading">
+                        <span class="month-label">Đang...</span>
+                        <span class="date-number">--</span>
+                        <span class="weekday">Tải...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="showtime-slot-band">
+                <div class="showtime-slot-grid" id="showtimeSlotGrid">
+                    <div class="showtime-empty-state">Đang tải suất chiếu...</div>
+                </div>
+                <div class="showtime-selection-placeholder" id="showtimeSelectionPlaceholder">
+                    Chọn một suất chiếu để xem chi tiết ghế (tính năng sẽ được cập nhật).
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+<th:block th:replace="fragments/footer :: main"></th:block>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script th:src="@{/auth.js}"></script>
+<script th:src="@{/movie-detail.js}"></script>
+</body>
+</html>

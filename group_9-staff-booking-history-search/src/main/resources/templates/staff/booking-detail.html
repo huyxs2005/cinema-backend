@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<th:block th:replace="~{staff/layout :: layout('Chi tiết đơn', ~{::content}, ~{::scripts})}">
+    <th:block th:fragment="content">
+        <div class="card">
+            <div class="card-header between">
+                <div>
+                    <h2 th:text="${booking.movieTitle}">Movie</h2>
+                    <p>
+                        <span th:text="${booking.auditoriumName}">Room</span> ·
+                        <span th:text="${#temporals.format(booking.showtimeStart, 'dd/MM/yyyy HH:mm')}">Time</span>
+                    </p>
+                    <p>Mã đơn: <strong th:text="${booking.bookingCode}">CODE</strong></p>
+                </div>
+                <div class="status-box">
+                    <div>Đơn: <strong th:text="${booking.bookingStatus}">Pending</strong></div>
+                    <div>Thanh toán: <strong th:text="${booking.paymentStatus}">Unpaid</strong></div>
+                    <div>Phương thức: <strong th:text="${booking.paymentMethod}">Cash</strong></div>
+                </div>
+            </div>
+            <div class="card-body booking-detail-grid">
+                <section>
+                    <h3>Ghế</h3>
+                    <ul class="pill-list">
+                        <li th:each="seat : ${booking.seats}"
+                            th:text="${seat.rowLabel + seat.seatNumber}">A1</li>
+                    </ul>
+                    <h3>Combo</h3>
+                    <ul class="pill-list">
+                        <li th:each="combo : ${booking.combos}"
+                            th:text="${combo.name + ' x' + combo.quantity}">Combo 1</li>
+                        <li th:if="${#lists.isEmpty(booking.combos)}" class="empty-state">Không có combo</li>
+                    </ul>
+                    <h3>Khách hàng</h3>
+                    <p>SĐT: <span th:text="${booking.customerPhone} ?: '-'">-</span></p>
+                    <p>Email: <span th:text="${booking.customerEmail} ?: '-'">-</span></p>
+                </section>
+                <section>
+                    <h3>Thanh toán</h3>
+                    <p>Tổng: <strong th:text="${#numbers.formatDecimal(booking.totalAmount,0,'COMMA',0,'POINT')} + ' đ'">0</strong></p>
+                    <p>Cuối cùng: <strong th:text="${#numbers.formatDecimal(booking.finalAmount,0,'COMMA',0,'POINT')} + ' đ'">0</strong></p>
+                    <p>NV tạo: <span th:text="${booking.staffName} ?: '-'">-</span></p>
+                    <div class="action-buttons">
+                        <form th:if="${booking.canMarkPaid}" th:action="@{|/staff/bookings/${booking.bookingCode}/mark-paid|}" method="post">
+                            <button type="submit" class="btn-primary">Xác nhận thanh toán</button>
+                        </form>
+                        <a th:if="${booking.showQrButton}" th:href="@{|/staff/bookings/${booking.bookingCode}/qr|}"
+                           class="btn-secondary">Mở VietQR</a>
+                        <form th:if="${booking.canCancel}" th:action="@{|/staff/bookings/${booking.bookingCode}/cancel|}" method="post">
+                            <button type="submit" class="btn-danger">Huỷ đơn</button>
+                        </form>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </th:block>
+    <th:block th:fragment="scripts"></th:block>
+</th:block>
+</html>

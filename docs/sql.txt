@@ -1,0 +1,549 @@
+CREATE DATABASE CinemaBooking_Backlog;
+GO
+USE CinemaBooking_Backlog;
+GO
+
+/* =========================================
+   1) Security: roles, users, password reset
+   U001 U002 U003 U011 U019 U020
+   ========================================= */
+CREATE TABLE Roles (
+  RoleId INT IDENTITY(1,1) PRIMARY KEY,
+  Name   NVARCHAR(50) NOT NULL UNIQUE       -- User, Staff, Admin
+);
+
+CREATE TABLE Users (
+  UserId        INT IDENTITY(1,1) PRIMARY KEY,
+  Email         NVARCHAR(255) NOT NULL UNIQUE,
+  PasswordHash  NVARCHAR(255) NOT NULL,
+  FullName      NVARCHAR(100) NOT NULL,
+  Phone         NVARCHAR(20) NULL,
+  RoleId        INT NOT NULL,
+  IsActive      BIT NOT NULL DEFAULT 1,
+  CreatedAt     DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+  LastLoginAt   DATETIME2 NULL,
+  CONSTRAINT FK_Users_Roles FOREIGN KEY(RoleId) REFERENCES Roles(RoleId)
+);
+
+CREATE TABLE PasswordResetTokens (                 -- U003
+  TokenId   INT IDENTITY(1,1) PRIMARY KEY,
+  UserId    INT NOT NULL,
+  Token     NVARCHAR(100) NOT NULL UNIQUE,
+  ExpiresAt DATETIME2 NOT NULL,
+  UsedAt    DATETIME2 NULL,
+  CONSTRAINT FK_ResetTokens_Users FOREIGN KEY(UserId) REFERENCES Users(UserId)
+);
+
+/* =========================================
+   2) Cinema, rooms, seats
+   U022 U024
+   ========================================= */
+
+CREATE TABLE Auditoriums (
+  AuditoriumId INT IDENTITY(1,1) PRIMARY KEY,
+  Name         NVARCHAR(50) NOT NULL,
+  IsActive     BIT NOT NULL DEFAULT 1,
+);
+
+CREATE TABLE SeatTypes (                            -- U024
+  SeatTypeId      INT IDENTITY(1,1) PRIMARY KEY,
+  Name            NVARCHAR(50) NOT NULL UNIQUE,    -- Standard, VIP, Couple, Accessible
+  Description     NVARCHAR(255) NULL,
+  PriceMultiplier DECIMAL(5,2) NOT NULL DEFAULT 1.00,
+  IsActive        BIT NOT NULL DEFAULT 1
+);
+
+CREATE TABLE Seats (
+  SeatId       INT IDENTITY(1,1) PRIMARY KEY,
+  AuditoriumId INT NOT NULL,
+  RowLabel     NVARCHAR(5) NOT NULL,
+  SeatNumber   INT NOT NULL,
+  SeatTypeId   INT NOT NULL,
+  IsActive     BIT NOT NULL DEFAULT 1,
+  CONSTRAINT FK_Seats_Auditoriums FOREIGN KEY(AuditoriumId) REFERENCES Auditoriums(AuditoriumId),
+  CONSTRAINT FK_Seats_SeatTypes    FOREIGN KEY(SeatTypeId)    REFERENCES SeatTypes(SeatTypeId),
+  CONSTRAINT UQ_Seats UNIQUE(AuditoriumId, RowLabel, SeatNumber)
+);
+
+/* =========================================
+   3) Movies, genres, people, credits
+   U004 U005 U021
+   ========================================= */
+CREATE TABLE Movies (
+  MovieId         INT IDENTITY(1,1) PRIMARY KEY,
+  Title           NVARCHAR(200) NOT NULL,
+  OriginalTitle   NVARCHAR(200) NULL,
+  Description     NVARCHAR(MAX) NULL,
+  DurationMinutes INT NOT NULL,
+  AgeRating       NVARCHAR(20) NULL,              -- P, T13, T16, T18...
+  PosterUrl       NVARCHAR(500) NULL,
+  TrailerUrl      NVARCHAR(500) NULL,             -- link trailer
+  ImdbUrl         NVARCHAR(500) NULL,             -- link review IMDb
+  Status          NVARCHAR(20) NOT NULL,          -- NowShowing, ComingSoon, Stopped
+  ReleaseDate     DATE NULL,
+  EndDate         DATE NULL,
+  CONSTRAINT CK_Movies_Status CHECK (Status IN (N'NowShowing', N'ComingSoon', N'Stopped'))
+);
+
+CREATE TABLE Genres (
+  GenreId INT IDENTITY(1,1) PRIMARY KEY,
+  Name    NVARCHAR(50) NOT NULL UNIQUE
+);
+
+CREATE TABLE MovieGenres (
+  MovieId INT NOT NULL,
+  GenreId INT NOT NULL,
+  CONSTRAINT PK_MovieGenres PRIMARY KEY(MovieId, GenreId),
+  CONSTRAINT FK_MovieGenres_Movies FOREIGN KEY(MovieId) REFERENCES Movies(MovieId),
+  CONSTRAINT FK_MovieGenres_Genres FOREIGN KEY(GenreId) REFERENCES Genres(GenreId)
+);
+
+CREATE TABLE People (                               -- diễn viên, đạo diễn
+  PersonId INT IDENTITY(1,1) PRIMARY KEY,
+  FullName NVARCHAR(100) NOT NULL,
+  Bio      NVARCHAR(1000) NULL
+);
+
+CREATE TABLE MovieCredits (                          -- cast/director
+  MovieCreditId INT IDENTITY(1,1) PRIMARY KEY,
+  MovieId       INT NOT NULL,
+  PersonId      INT NOT NULL,
+  CreditType    NVARCHAR(20) NOT NULL,              -- 'Actor' | 'Director'
+  CharacterName NVARCHAR(100) NULL,
+  SortOrder     INT NULL,
+  CONSTRAINT FK_MovieCredits_Movies FOREIGN KEY(MovieId) REFERENCES Movies(MovieId),
+  CONSTRAINT FK_MovieCredits_People FOREIGN KEY(PersonId) REFERENCES People(PersonId),
+  CONSTRAINT UQ_MovieCredits UNIQUE(MovieId, PersonId, CreditType),
+  CONSTRAINT CK_MovieCredits_Type CHECK (CreditType IN (N'Actor', N'Director'))
+);
+CREATE INDEX IX_MovieCredits_Movie_Type ON MovieCredits(MovieId, CreditType, SortOrder);
+
+/* =========================================
+   4) Showtimes, showtime seats
+   U006 U023
+   ========================================= */
+CREATE TABLE Showtimes (
+  ShowtimeId   INT IDENTITY(1,1) PRIMARY KEY,
+  MovieId      INT NOT NULL,
+  AuditoriumId INT NOT NULL,
+  StartTime    DATETIME2 NOT NULL,
+  EndTime      DATETIME2 NOT NULL,
+  BasePrice    DECIMAL(18,2) NOT NULL,
+  IsActive     BIT NOT NULL DEFAULT 1,
+  CONSTRAINT FK_Showtimes_Movies      FOREIGN KEY(MovieId)      REFERENCES Movies(MovieId),
+  CONSTRAINT FK_Showtimes_Auditoriums FOREIGN KEY(AuditoriumId) REFERENCES Auditoriums(AuditoriumId),
+  CONSTRAINT UQ_Showtimes UNIQUE(AuditoriumId, StartTime),      -- cảnh báo trùng giờ
+  CONSTRAINT CK_Showtimes_Time CHECK (EndTime > StartTime)
+);
+
+CREATE TABLE ShowtimeSeats (
+  ShowtimeSeatId INT IDENTITY(1,1) PRIMARY KEY,
+  ShowtimeId     INT NOT NULL,
+  SeatId         INT NOT NULL,
+  EffectivePrice DECIMAL(18,2) NOT NULL,          -- snapshot giá cho suất
+  Status         NVARCHAR(20) NOT NULL DEFAULT N'Available', -- Available/Disabled
+  CONSTRAINT FK_ShowtimeSeats_Showtimes FOREIGN KEY(ShowtimeId) REFERENCES Showtimes(ShowtimeId),
+  CONSTRAINT FK_ShowtimeSeats_Seats     FOREIGN KEY(SeatId)     REFERENCES Seats(SeatId),
+  CONSTRAINT UQ_ShowtimeSeats UNIQUE(ShowtimeId, SeatId),
+  CONSTRAINT CK_ShowtimeSeats_Status CHECK (Status IN (N'Available', N'Disabled'))
+);
+
+/* =========================================
+   5) Pricing rules (để sinh EffectivePrice)
+   U024
+   ========================================= */
+CREATE TABLE PricingRules (
+  PricingRuleId INT IDENTITY(1,1) PRIMARY KEY,
+  Name          NVARCHAR(100) NOT NULL,
+  SeatTypeId    INT NOT NULL,
+  DayOfWeek     TINYINT NULL,                     -- 1..7, NULL=any
+  FromTime      TIME NULL,
+  ToTime        TIME NULL,
+  IsWeekend     BIT NULL,
+  Price         DECIMAL(18,2) NOT NULL,
+  IsActive      BIT NOT NULL DEFAULT 1,
+  CONSTRAINT FK_PricingRules_SeatTypes FOREIGN KEY(SeatTypeId) REFERENCES SeatTypes(SeatTypeId),
+  CONSTRAINT CK_PricingRules_Time CHECK (FromTime IS NULL OR ToTime IS NULL OR FromTime < ToTime)
+);
+
+/* =========================================
+   6) Combos & vouchers
+   U025 U026
+   ========================================= */
+CREATE TABLE Combos (
+  ComboId     INT IDENTITY(1,1) PRIMARY KEY,
+  Name        NVARCHAR(100) NOT NULL,
+  Description NVARCHAR(255) NULL,
+  Price       DECIMAL(18,2) NOT NULL,
+  ImageUrl    NVARCHAR(500) NULL,
+  IsActive    BIT NOT NULL DEFAULT 1
+);
+CREATE UNIQUE INDEX UX_Combos_Name ON Combos(Name);
+
+CREATE TABLE Vouchers (
+  VoucherId      INT IDENTITY(1,1) PRIMARY KEY,
+  Code           NVARCHAR(50) NOT NULL UNIQUE,
+  DiscountType   CHAR(1) NOT NULL,               -- 'P' percent, 'A' amount
+  DiscountValue  DECIMAL(18,2) NOT NULL,
+  MaxDiscount    DECIMAL(18,2) NULL,
+  MinOrderAmount DECIMAL(18,2) NULL,
+  ValidFrom      DATETIME2 NOT NULL,
+  ValidTo        DATETIME2 NOT NULL,
+  MaxUsageCount  INT NULL,
+  PerUserLimit   INT NULL,
+  IsActive       BIT NOT NULL DEFAULT 1,
+  CONSTRAINT CK_Vouchers_Type   CHECK (DiscountType IN ('P','A')),
+  CONSTRAINT CK_Vouchers_Window CHECK (ValidFrom < ValidTo)
+);
+
+/* =========================================
+   7) Booking, items, tickets, payments
+   U007 U008 U009 U010 U013 U014 U015 U017 U018 U012
+   ========================================= */
+CREATE TABLE Bookings (
+  BookingId       INT IDENTITY(1,1) PRIMARY KEY,
+  BookingCode     NVARCHAR(50) NOT NULL UNIQUE,    -- public identifier
+  UserId          INT NULL,                        -- NULL nếu mua tại quầy
+  CreatedByStaffId INT NULL,                       -- nhân viên quầy
+  ShowtimeId      INT NOT NULL,
+  VoucherId       INT NULL,
+  BookingStatus   NVARCHAR(20) NOT NULL CONSTRAINT DF_Bookings_Status DEFAULT N'Pending',
+  PaymentStatus   NVARCHAR(20) NOT NULL CONSTRAINT DF_Bookings_Pay DEFAULT N'Unpaid',
+  PaymentMethod   NVARCHAR(20) NULL,               -- VNPay, MoMo, Card, Cash
+  TotalAmount     DECIMAL(18,2) NOT NULL,
+  FinalAmount     DECIMAL(18,2) NOT NULL,
+  CreatedAt       DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+  PaidAt          DATETIME2 NULL,
+  CancelledAt     DATETIME2 NULL,
+  CONSTRAINT FK_Bookings_Users   FOREIGN KEY(UserId) REFERENCES Users(UserId),
+  CONSTRAINT FK_Bookings_Staff   FOREIGN KEY(CreatedByStaffId) REFERENCES Users(UserId),
+  CONSTRAINT FK_Bookings_Show    FOREIGN KEY(ShowtimeId) REFERENCES Showtimes(ShowtimeId),
+  CONSTRAINT FK_Bookings_Voucher FOREIGN KEY(VoucherId) REFERENCES Vouchers(VoucherId),
+  CONSTRAINT CK_Bookings_Status  CHECK (BookingStatus IN (N'Pending',N'Confirmed',N'Cancelled',N'Refunded')),
+  CONSTRAINT CK_Bookings_PayStat CHECK (PaymentStatus IN (N'Unpaid',N'Paid',N'Failed'))
+);
+
+CREATE TABLE BookingSeats (                           -- 1 ghế/1 suất/1 booking
+  BookingSeatId  INT IDENTITY(1,1) PRIMARY KEY,
+  BookingId      INT NOT NULL,
+  ShowtimeSeatId INT NOT NULL,
+  UnitPrice      DECIMAL(18,2) NOT NULL,
+  DiscountAmount DECIMAL(18,2) NOT NULL DEFAULT 0,
+  FinalPrice     DECIMAL(18,2) NOT NULL,
+  CONSTRAINT FK_BookingSeats_Bookings     FOREIGN KEY(BookingId)      REFERENCES Bookings(BookingId),
+  CONSTRAINT FK_BookingSeats_ShowtimeSeat FOREIGN KEY(ShowtimeSeatId) REFERENCES ShowtimeSeats(ShowtimeSeatId),
+  CONSTRAINT UQ_BookingSeats_ShowtimeSeat UNIQUE(ShowtimeSeatId)      -- chống double-booking
+);
+
+CREATE TABLE Tickets (                                -- U009 U018
+  TicketId           INT IDENTITY(1,1) PRIMARY KEY,
+  BookingSeatId      INT NOT NULL,
+  TicketCode         NVARCHAR(50) NOT NULL UNIQUE,
+  QRCodeData         NVARCHAR(4000) NOT NULL,
+  IssuedAt           DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+  CheckedInAt        DATETIME2 NULL,
+  CheckedInByStaffId INT NULL,
+  CONSTRAINT FK_Tickets_BookingSeats FOREIGN KEY(BookingSeatId)      REFERENCES BookingSeats(BookingSeatId),
+  CONSTRAINT FK_Tickets_Staff       FOREIGN KEY(CheckedInByStaffId)  REFERENCES Users(UserId)
+);
+
+CREATE TABLE BookingCombos (                           -- U015 + U025
+  BookingComboId INT IDENTITY(1,1) PRIMARY KEY,
+  BookingId      INT NOT NULL,
+  ComboId        INT NOT NULL,
+  Quantity       INT NOT NULL CHECK (Quantity > 0),
+  UnitPrice      DECIMAL(18,2) NOT NULL,
+  TotalPrice     DECIMAL(18,2) NOT NULL,
+  CONSTRAINT FK_BookingCombos_Bookings FOREIGN KEY(BookingId) REFERENCES Bookings(BookingId),
+  CONSTRAINT FK_BookingCombos_Combos   FOREIGN KEY(ComboId)   REFERENCES Combos(ComboId),
+  CONSTRAINT UQ_BookingCombos UNIQUE(BookingId, ComboId)
+);
+
+CREATE TABLE PaymentLogs (                             -- U008
+  PaymentLogId          INT IDENTITY(1,1) PRIMARY KEY,
+  BookingId             INT NOT NULL,
+  Provider              NVARCHAR(50) NOT NULL,        -- VNPay, MoMo
+  Amount                DECIMAL(18,2) NOT NULL,
+  ProviderTransactionId NVARCHAR(100) NULL,
+  Status                NVARCHAR(20) NOT NULL,        -- Init, Success, Fail
+  CreatedAt             DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+  RawMessage            NVARCHAR(MAX) NULL,
+  CONSTRAINT FK_PaymentLogs_Bookings FOREIGN KEY(BookingId) REFERENCES Bookings(BookingId)
+);
+
+CREATE TABLE VoucherUsages (                           -- U012 tracking
+  VoucherUsageId INT IDENTITY(1,1) PRIMARY KEY,
+  VoucherId      INT NOT NULL,
+  UserId         INT NULL,
+  BookingId      INT NOT NULL,
+  UsedAt         DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+  CONSTRAINT FK_VoucherUsages_Vouchers FOREIGN KEY (VoucherId) REFERENCES Vouchers(VoucherId),
+  CONSTRAINT FK_VoucherUsages_Users    FOREIGN KEY (UserId)    REFERENCES Users(UserId),
+  CONSTRAINT FK_VoucherUsages_Bookings FOREIGN KEY (BookingId)  REFERENCES Bookings(BookingId)
+);
+
+/* =========================================
+   8) Seat holds (10-minute lock)
+   U033
+   ========================================= */
+CREATE TABLE SeatHolds (
+  SeatHoldId     INT IDENTITY(1,1) PRIMARY KEY,
+  ShowtimeSeatId INT NOT NULL,
+  HoldToken      UNIQUEIDENTIFIER NOT NULL DEFAULT NEWID(),
+  UserId         INT NULL,
+  CreatedAt      DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+  ExpiresAt      DATETIME2 NOT NULL,
+  Status         NVARCHAR(20) NOT NULL,             -- Held, Released, Expired, Booked
+  CONSTRAINT FK_SeatHolds_ShowtimeSeat FOREIGN KEY(ShowtimeSeatId) REFERENCES ShowtimeSeats(ShowtimeSeatId),
+  CONSTRAINT FK_SeatHolds_Users        FOREIGN KEY(UserId)         REFERENCES Users(UserId),
+  CONSTRAINT CK_SeatHolds_Status CHECK (Status IN (N'Held',N'Released',N'Expired',N'Booked'))
+);
+CREATE UNIQUE INDEX UX_SeatHolds_Active ON SeatHolds(ShowtimeSeatId) WHERE Status = N'Held';
+
+/* =========================================
+   9) Email logs (SMTP)
+   U032
+   ========================================= */
+CREATE TABLE EmailLogs (
+  EmailLogId       INT IDENTITY(1,1) PRIMARY KEY,
+  ToEmail          NVARCHAR(255) NOT NULL,
+  Subject          NVARCHAR(255) NOT NULL,
+  TemplateName     NVARCHAR(100) NULL,
+  RelatedBookingId INT NULL,
+  Status           NVARCHAR(20) NOT NULL,           -- Pending, Sent, Failed
+  CreatedAt        DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+  SentAt           DATETIME2 NULL,
+  ErrorMessage     NVARCHAR(1000) NULL,
+  CONSTRAINT FK_EmailLogs_Bookings FOREIGN KEY(RelatedBookingId) REFERENCES Bookings(BookingId)
+);
+
+/* =========================================
+   10) Views for dashboard/export
+   U027 U028
+   ========================================= */
+CREATE VIEW v_DailyRevenue AS
+SELECT
+  CAST(CreatedAt AS DATE) AS SaleDate,
+  SUM(CASE WHEN PaymentStatus=N'Paid' THEN FinalAmount ELSE 0 END) AS Revenue,
+  COUNT(CASE WHEN PaymentStatus=N'Paid' THEN 1 END) AS PaidOrders,
+  COUNT(*) AS TotalOrders
+FROM Bookings
+GROUP BY CAST(CreatedAt AS DATE);
+
+CREATE VIEW v_ShowtimeOccupancy AS
+SELECT
+  s.ShowtimeId,
+  SUM(CASE WHEN ss.Status=N'Available' THEN 1 ELSE 0 END) AS TotalSellableSeats,
+  SUM(CASE WHEN bs.BookingSeatId IS NOT NULL THEN 1 ELSE 0 END) AS SoldSeats,
+  CAST(
+    SUM(CASE WHEN bs.BookingSeatId IS NOT NULL THEN 1 ELSE 0 END) * 1.0 /
+    NULLIF(SUM(CASE WHEN ss.Status=N'Available' THEN 1 ELSE 0 END),0)
+    AS DECIMAL(5,2)
+  ) AS Occupancy
+FROM Showtimes s
+JOIN ShowtimeSeats ss ON ss.ShowtimeId = s.ShowtimeId
+LEFT JOIN BookingSeats bs ON bs.ShowtimeSeatId = ss.ShowtimeSeatId
+GROUP BY s.ShowtimeId;
+
+/* =========================================
+   11) Helpful indexes for backlog queries
+   U004 U006 U014 U018 U013 U030
+   ========================================= */
+CREATE INDEX IX_Showtimes_Movie_StartTime      ON Showtimes(MovieId, StartTime);
+CREATE INDEX IX_ShowtimeSeats_Showtime_Status  ON ShowtimeSeats(ShowtimeId, Status);
+CREATE INDEX IX_Bookings_User_CreatedAt        ON Bookings(UserId, CreatedAt DESC);
+CREATE INDEX IX_Bookings_Showtime              ON Bookings(ShowtimeId);
+CREATE INDEX IX_BookingSeats_Booking           ON BookingSeats(BookingId);
+CREATE INDEX IX_Tickets_Code                   ON Tickets(TicketCode);
+CREATE INDEX IX_PaymentLogs_Booking            ON PaymentLogs(BookingId);
+CREATE INDEX IX_Vouchers_ActiveWindow          ON Vouchers(IsActive, ValidFrom, ValidTo);
+CREATE INDEX IX_EmailLogs_Status               ON EmailLogs(Status, CreatedAt);
+GO
+
+/* =========================================
+   12) Integrity trigger: seat must belong to booking's showtime
+   ========================================= */
+IF OBJECT_ID('dbo.trg_BookingSeats_ShowtimeMatch','TR') IS NOT NULL
+  DROP TRIGGER dbo.trg_BookingSeats_ShowtimeMatch;
+GO
+CREATE TRIGGER dbo.trg_BookingSeats_ShowtimeMatch
+ON dbo.BookingSeats
+AFTER INSERT, UPDATE
+AS
+BEGIN
+  SET NOCOUNT ON;
+  IF EXISTS (
+    SELECT 1
+    FROM inserted i
+    JOIN dbo.ShowtimeSeats ss ON ss.ShowtimeSeatId = i.ShowtimeSeatId
+    JOIN dbo.Bookings b       ON b.BookingId       = i.BookingId
+    WHERE b.ShowtimeId <> ss.ShowtimeId
+  )
+  BEGIN
+    RAISERROR(N'Booking must use seats from the same showtime.', 16, 1);
+    ROLLBACK TRANSACTION;
+    RETURN;
+  END
+END;
+GO
+
+--Banners table
+USE CinemaBooking_Backlog;
+GO
+/* =========================================
+   Home page banners (for promos & hot movies)
+   ========================================= */
+CREATE TABLE HomeBanners (
+  BannerId    INT IDENTITY(1,1) PRIMARY KEY,
+  ImagePath   NVARCHAR(500) NOT NULL,         -- e.g. /uploads/banners/tafiti-2025.jpg
+  LinkType    NVARCHAR(20) NOT NULL,          -- 'MOVIE', 'URL', 'PROMO'
+  MovieId     INT NULL,                       -- when LinkType = 'MOVIE'
+  PromotionId INT NULL,                       -- when LinkType = 'PROMO'
+  TargetUrl   NVARCHAR(500) NULL,             -- when LinkType = 'URL' (e.g. /promo/1)
+  SortOrder   INT NOT NULL DEFAULT 1,
+  IsActive    BIT NOT NULL DEFAULT 1,
+  StartDate   DATE NULL,
+  EndDate     DATE NULL,
+  CONSTRAINT CK_HomeBanners_LinkType CHECK (LinkType IN (N'MOVIE', N'URL', N'PROMO')),
+  CONSTRAINT CK_HomeBanners_SortOrder CHECK (SortOrder BETWEEN 1 AND 100),
+  CONSTRAINT FK_HomeBanners_Movies FOREIGN KEY(MovieId) REFERENCES Movies(MovieId),
+  CONSTRAINT FK_HomeBanners_Promotions FOREIGN KEY(PromotionId) REFERENCES Promotions(PromotionId)
+);
+
+CREATE INDEX IX_HomeBanners_Active ON HomeBanners(IsActive, SortOrder, StartDate, EndDate);
+
+
+
+
+/*-------alter------*/
+USE CinemaBooking_Backlog;
+GO
+-- add YT EmbedUrl
+ALTER TABLE Movies
+ADD TrailerEmbedUrl NVARCHAR(500) NULL;
+
+/*-------add enddate to movies------*/
+USE CinemaBooking_Backlog;
+GO
+
+ALTER TABLE Movies
+ADD EndDate DATE NULL;
+GO
+
+/* Drop ShowFormats table and references */
+USE CinemaBooking_Backlog;
+GO
+ALTER TABLE dbo.Showtimes
+DROP CONSTRAINT IF EXISTS FK_Showtimes_Formats;
+GO
+IF OBJECT_ID('dbo.ShowFormats','U') IS NOT NULL
+    DROP TABLE dbo.ShowFormats;
+GO
+ALTER TABLE dbo.Showtimes
+DROP COLUMN IF EXISTS ShowFormatId;
+GO
+
+/* add chairs crud to auditoriums */
+ALTER TABLE dbo.Auditoriums
+ADD NumberOfRows   INT    NOT NULL DEFAULT 0,
+    NumberOfColumns INT   NOT NULL DEFAULT 0;
+GO
+
+/* Promotions + banner link updates . Drop the old Promotion table and recreate it with this table */
+USE CinemaBooking_Backlog;
+GO
+
+IF OBJECT_ID('dbo.Promotions','U') IS NOT NULL
+BEGIN
+    DROP TABLE dbo.Promotions;
+END
+GO
+
+/* recreate table promotions */
+
+
+
+USE CinemaBooking_Backlog;
+GO
+IF OBJECT_ID('dbo.Promotions','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Promotions (
+      PromotionId     INT IDENTITY(1,1) PRIMARY KEY,
+      Slug            NVARCHAR(200) NOT NULL UNIQUE,
+      Title           NVARCHAR(300) NOT NULL,
+      ThumbnailUrl    NVARCHAR(500) NULL,
+      Content         NVARCHAR(MAX) NOT NULL,
+      ImgContentUrl   NVARCHAR(500) NULL,
+      PublishedDate   DATE NULL,
+      IsActive        BIT NOT NULL DEFAULT 1,
+      CreatedAt       DATETIMEOFFSET(7) NOT NULL DEFAULT SYSDATETIMEOFFSET(),
+      UpdatedAt       DATETIMEOFFSET(7) NOT NULL DEFAULT SYSDATETIMEOFFSET()
+    );
+END
+GO
+
+IF COL_LENGTH('dbo.Promotions','ShortDescription') IS NOT NULL
+    ALTER TABLE dbo.Promotions DROP COLUMN ShortDescription;
+GO
+
+IF COL_LENGTH('dbo.Promotions','CoverUrl') IS NOT NULL
+    ALTER TABLE dbo.Promotions DROP COLUMN CoverUrl;
+GO
+
+IF COL_LENGTH('dbo.Promotions','ImgContentUrl') IS NULL
+    ALTER TABLE dbo.Promotions ADD ImgContentUrl NVARCHAR(500) NULL;
+GO
+
+IF COL_LENGTH('dbo.HomeBanners','PromotionId') IS NULL
+    ALTER TABLE dbo.HomeBanners ADD PromotionId INT NULL;
+GO
+
+ALTER TABLE dbo.HomeBanners DROP CONSTRAINT IF EXISTS CK_HomeBanners_LinkType;
+GO
+ALTER TABLE dbo.HomeBanners
+ADD CONSTRAINT CK_HomeBanners_LinkType CHECK (LinkType IN (N'MOVIE', N'URL', N'PROMO'));
+GO
+
+ALTER TABLE dbo.HomeBanners DROP CONSTRAINT IF EXISTS FK_HomeBanners_Promotions;
+GO
+ALTER TABLE dbo.HomeBanners
+ADD CONSTRAINT FK_HomeBanners_Promotions FOREIGN KEY(PromotionId) REFERENCES dbo.Promotions(PromotionId);
+GO
+
+/*-------update login logic-------*/
+
+ALTER TABLE dbo.PasswordResetTokens
+    DROP CONSTRAINT FK_ResetTokens_Users;
+
+ALTER TABLE dbo.PasswordResetTokens
+    ADD CONSTRAINT FK_ResetTokens_Users
+        FOREIGN KEY (UserId)
+        REFERENCES dbo.Users(UserId)
+        ON DELETE CASCADE;
+
+
+
+
+
+
+/* Movies: age rating + duration cap */
+USE CinemaBooking_Backlog;
+GO
+ALTER TABLE Movies DROP CONSTRAINT IF EXISTS CK_Movies_AgeRating;
+ALTER TABLE Movies DROP CONSTRAINT IF EXISTS CK_Movies_DurationMax;
+GO
+ALTER TABLE Movies
+ADD CONSTRAINT CK_Movies_AgeRating CHECK (AgeRating IS NULL OR AgeRating IN (N'P', N'K', N'T13', N'T16', N'T18')),
+    CONSTRAINT CK_Movies_DurationMax CHECK (DurationMinutes BETWEEN 1 AND 900);
+GO
+
+IF COL_LENGTH('dbo.Users', 'LastLoginAt') IS NULL
+BEGIN
+    ALTER TABLE dbo.Users ADD LastLoginAt DATETIME2 NULL;
+END
+GO
+
+
+
+
+

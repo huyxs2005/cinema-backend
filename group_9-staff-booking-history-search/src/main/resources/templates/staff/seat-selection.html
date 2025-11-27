@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<th:block th:replace="~{staff/layout :: layout('Tạo đơn mới', ~{::content}, ~{::scripts})}">
+    <th:block th:fragment="content">
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <h2 th:text="${seatMap.movieTitle}">Movie</h2>
+                    <p>
+                        <span th:text="${seatMap.auditoriumName}">Room</span> ·
+                        <span th:text="${#temporals.format(seatMap.startTime, 'dd/MM/yyyy HH:mm')}">Time</span>
+                    </p>
+                </div>
+                <div>
+                    <div>Đã bán: <strong th:text="${seatMap.soldSeats}">0</strong></div>
+                    <div>Đang giữ: <strong th:text="${seatMap.heldSeats}">0</strong></div>
+                </div>
+            </div>
+            <div class="card-body seat-selection-body">
+                <div class="seat-map-panel">
+                    <div class="screen-label">Màn chiếu</div>
+                    <div class="seat-grid"
+                         id="seatGrid"
+                         th:data-showtime-id="${seatMap.showtimeId}"
+                         th:data-seat-api="@{|/staff/api/showtimes/${seatMap.showtimeId}/seats|}">
+                    </div>
+                    <div class="seat-legend">
+                        <span class="legend available">Trống</span>
+                        <span class="legend selected">Đang chọn</span>
+                        <span class="legend booked">Đã bán</span>
+                        <span class="legend held">Đang giữ</span>
+                        <span class="legend disabled">Không khả dụng</span>
+                    </div>
+                </div>
+                <div class="order-panel">
+                    <form class="booking-form" method="post" th:action="@{/staff/bookings}">
+                        <input type="hidden" name="showtimeId" th:value="${seatMap.showtimeId}">
+                        <input type="hidden" id="selectedSeatsInput" name="selectedSeats">
+                        <div class="form-group">
+                            <label>Ghế đã chọn</label>
+                            <div id="selectedSeatList" class="selected-seats"></div>
+                        </div>
+                        <div class="form-group">
+                            <label>Combo</label>
+                            <div class="combo-list">
+                                <div class="combo-row" th:each="combo : ${combos}">
+                                    <div>
+                                        <strong th:text="${combo.name}">Combo</strong>
+                                        <small th:text="${combo.description}"></small>
+                                    </div>
+                                    <div>
+                                        <span th:text="${#numbers.formatDecimal(combo.price, 0, 'COMMA', 0, 'POINT')} + 'đ'">0đ</span>
+                                        <input type="number" min="0" value="0"
+                                               th:attr="name=${'combo_' + combo.comboId},data-price=${combo.price}">
+                                    </div>
+                                </div>
+                                <div th:if="${#lists.isEmpty(combos)}" class="empty-state">Chưa có combo.</div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Thông tin khách hàng</label>
+                            <input type="text" name="customerPhone" placeholder="SĐT (tuỳ chọn)">
+                            <input type="email" name="customerEmail" placeholder="Email (tuỳ chọn)">
+                        </div>
+                        <div class="form-group">
+                            <label>Phương thức thanh toán</label>
+                            <div class="radio-group">
+                                <label><input type="radio" name="paymentMethod" value="CASH" checked> Tiền mặt</label>
+                                <label><input type="radio" name="paymentMethod" value="VIETQR"> VietQR</label>
+                            </div>
+                        </div>
+                        <div class="form-group total-line">
+                            <span>Tổng tạm tính</span>
+                            <strong id="orderTotal">0 đ</strong>
+                        </div>
+                        <button type="submit" class="btn-primary w-100">Tạo đơn</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </th:block>
+    <th:block th:fragment="scripts">
+        <script th:src="@{/staff/js/seat-selection.js}"></script>
+    </th:block>
+</th:block>
+</html>

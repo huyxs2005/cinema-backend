@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<th:block th:fragment="layout(pageTitle, content, scripts)">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title th:text="${pageTitle} ?: 'Staff Portal'">Staff Portal</title>
+        <link rel="stylesheet" th:href="@{/staff/css/staff.css}">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    </head>
+    <body class="staff-body">
+    <div class="staff-shell">
+        <aside class="staff-sidebar">
+            <div class="sidebar-header">
+                <div class="portal-title">Staff Portal</div>
+                <div class="portal-user">
+                    <span class="user-name" th:text="${currentStaff != null ? currentStaff.fullName : 'Staff'}"></span>
+                    <form th:action="@{/staff/logout}" method="post">
+                        <button type="submit" class="btn-logout"><i class="fa fa-sign-out-alt"></i> Thoát</button>
+                    </form>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a th:href="@{/staff/dashboard}" class="nav-link">
+                    <i class="fa fa-chart-line"></i> Dashboard
+                </a>
+                <a th:href="@{/staff/bookings/today}" class="nav-link">
+                    <i class="fa fa-calendar-day"></i> Đơn trong ngày
+                </a>
+                <a th:href="@{/staff/bookings/search}" class="nav-link">
+                    <i class="fa fa-search"></i> Tìm đơn
+                </a>
+            </nav>
+        </aside>
+        <main class="staff-main">
+            <header class="page-header">
+                <h1 th:text="${pageTitle} ?: 'Staff Portal'">Staff Portal</h1>
+            </header>
+            <section class="flash-messages">
+                <div class="alert alert-success" th:if="${successMessage}" th:text="${successMessage}"></div>
+                <div class="alert alert-info" th:if="${infoMessage}" th:text="${infoMessage}"></div>
+                <div class="alert alert-warning" th:if="${warningMessage}" th:text="${warningMessage}"></div>
+            </section>
+            <section class="staff-content">
+                <th:block th:replace="${content}"></th:block>
+            </section>
+        </main>
+    </div>
+    <th:block th:if="${scripts != null}" th:replace="${scripts}"></th:block>
+    </body>
+</th:block>
+</html>

@@ -1,0 +1,215 @@
+--admin account 
+USE CinemaBooking_Backlog;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM Roles WHERE Name = 'Admin')
+    INSERT INTO Roles (Name) VALUES ('Admin');
+
+DECLARE @AdminRoleId INT = (SELECT RoleId FROM Roles WHERE Name = 'Admin');
+
+INSERT INTO Users (Email, PasswordHash, FullName, Phone, RoleId, IsActive)
+VALUES (
+    'kiroadmin@gmail.com',
+    '$2a$10$5HHA0YM9VwRfq5DlveZey.saC0STqURFGV.y4QaJ00qxOiEPx2bxO', -- BCrypt for Admin@123
+    N'System Administrator',
+    '0905675437',
+    @AdminRoleId,
+    1
+);
+
+--staff account 
+USE CinemaBooking_Backlog;
+GO
+
+-- đảm bảo đã có role Staff
+IF NOT EXISTS (SELECT 1 FROM Roles WHERE Name = 'Staff')
+    INSERT INTO Roles (Name) VALUES ('Staff');
+
+DECLARE @StaffRoleId INT = (SELECT RoleId FROM Roles WHERE Name = 'Staff');
+
+INSERT INTO Users (Email, PasswordHash, FullName, Phone, RoleId, IsActive)
+VALUES (
+    'nhanvien.duc@gmail.com',
+    '$2a$10$A3AGn1nP6h4iS6yCyHkUwu5gWeK1qG1s0ZlZ1aU5vT1cs5hZVXAB6', -- BCrypt cho Staff@123
+    N'Nguyễn Văn Nhân Viên',
+    '0900000001',
+    @StaffRoleId,
+    1
+);
+GO
+
+
+-- roles
+USE CinemaBooking_Backlog;
+GO
+IF NOT EXISTS (SELECT 1 FROM Roles WHERE Name = 'User') INSERT INTO Roles (Name) VALUES ('User');
+IF NOT EXISTS (SELECT 1 FROM Roles WHERE Name = 'Staff') INSERT INTO Roles (Name) VALUES ('Staff');
+IF NOT EXISTS (SELECT 1 FROM Roles WHERE Name = 'Admin') INSERT INTO Roles (Name) VALUES ('Admin');
+
+
+INSERT INTO SeatTypes (Name, Description, PriceMultiplier, IsActive)
+VALUES
+    (N'Standard', N'Ghế thường',     1.00, 1),
+    (N'VIP',      N'Ghế vị trí đẹp', 1.20, 1),
+    (N'Couple',   N'Ghế đôi cuối rạp', 2.00, 1);
+
+    /* Genres */
+MERGE INTO Genres AS t
+USING (VALUES
+    (N'Hoạt hành'),
+    (N'Thần thoại'),
+    (N'Hành động'),
+    (N'Phiêu lưu'),
+    (N'Nhạc kịch'),
+    (N'Tâm lý'),
+    (N'Tình cảm'),
+    (N'Kinh dị'),
+    (N'Hài')
+) AS g(Name)
+ON t.Name = g.Name
+WHEN NOT MATCHED THEN INSERT(Name) VALUES (g.Name);
+
+
+
+
+/*----------------------------Non Important testing insert data-------------------------*/
+
+USE CinemaBooking_Backlog;
+GO
+
+/* Movies */
+MERGE INTO Movies AS target
+USING (VALUES
+    (N'Chú Thuật Hồi Chiến 0 – Tái Khởi Chiếu', N'Jujutsu Kaisen 0',
+        N'Yuta Okkotsu joins Tokyo Jujutsu High to control a powerful curse.',
+        105, N'T13', N'/uploads/movies/jjk.jpeg',
+        N'https://youtu.be/jujutsu0', N'https://www.imdb.com/title/tt14331144/',
+        N'NowShowing', '2025-11-14'),
+    (N'Mộ Đom Đóm - K (Phụ đề)', N'Grave of the Fireflies',
+        N'Two siblings struggle to survive in wartime Japan.',
+        88, N'T13', N'/img/movies/fireflies.jpg',
+        N'https://youtu.be/fireflies', N'https://www.imdb.com/title/tt0095327/',
+        N'ComingSoon', '2025-11-07'),
+    (N'Wicked: Phần 2 - K', NULL,
+        N'The untold story of the witches of Oz continues.',
+        160, N'T16', N'/img/movies/wicked2.jpg',
+        N'https://youtu.be/wicked2', N'https://www.imdb.com/title/tt1262426/',
+        N'ComingSoon', '2025-11-21'),
+    (N'Truy Tìm Long Diên Hương', NULL,
+        N'Một cuộc phiêu lưu hài hước trong nông trại',
+        115, N'T16', N'/img/movies/longdienhuong.jpg',
+        N'https://youtu.be/longdien', N'https://www.imdb.com/title/tt0000001/',
+        N'NowShowing', '2025-11-14'),
+    (N'Cục Vàng Của Ngoại', NULL,
+        N'Gia đình vui nhộn chiến đấu để giữ lại tiệm tạp hóa thân yêu.',
+        110, N'T13', N'/img/movies/cucvang.jpg',
+        N'https://youtu.be/cucvang', N'https://www.imdb.com/title/tt0000002/',
+        N'NowShowing', '2025-10-17')
+) AS s(Title, OriginalTitle, Description, DurationMinutes, AgeRating,
+        PosterUrl, TrailerUrl, ImdbUrl, Status, ReleaseDate)
+ON target.Title = s.Title
+WHEN NOT MATCHED THEN
+    INSERT (Title, OriginalTitle, Description, DurationMinutes, AgeRating,
+            PosterUrl, TrailerUrl, ImdbUrl, Status, ReleaseDate)
+    VALUES (s.Title, s.OriginalTitle, s.Description, s.DurationMinutes,
+            s.AgeRating, s.PosterUrl, s.TrailerUrl, s.ImdbUrl, s.Status,
+            s.ReleaseDate);
+-- add more rows in the VALUES block if you like
+
+/* Genres */
+MERGE INTO Genres AS t
+USING (VALUES
+    (N'Hoạt hình'), (N'Thần thoại'), (N'Hành động'), (N'Phiêu lưu'),
+    (N'Nhạc kịch'), (N'Tâm lý'), (N'Tình cảm'), (N'Kinh dị'), (N'Hài')
+) AS g(Name)
+ON t.Name = g.Name
+WHEN NOT MATCHED THEN INSERT(Name) VALUES (g.Name);
+
+/* Movie ↔ Genre */
+INSERT INTO MovieGenres (MovieId, GenreId)
+SELECT m.MovieId, g.GenreId
+FROM (VALUES
+    (N'Chú Thuật Hồi Chiến 0 – Tái Khởi Chiếu', N'Hoạt hình'),
+    (N'Chú Thuật Hồi Chiến 0 – Tái Khởi Chiếu', N'Thần thoại'),
+    (N'Mộ Đom Đóm - K (Phụ đề)', N'Thần thoại'),
+    (N'Wicked: Phần 2 - K', N'Phiêu lưu'),
+    (N'Wicked: Phần 2 - K', N'Nhạc kịch'),
+    (N'Truy Tìm Long Diên Hương', N'Hài'),
+    (N'Truy Tìm Long Diên Hương', N'Phiêu lưu'),
+    (N'Cục Vàng Của Ngoại', N'Tâm lý'),
+    (N'Cục Vàng Của Ngoại', N'Tình cảm')
+) AS map(Title, GenreName)
+JOIN Movies m ON m.Title = map.Title
+JOIN Genres g ON g.Name = map.GenreName
+WHERE NOT EXISTS (
+    SELECT 1 FROM MovieGenres mg
+    WHERE mg.MovieId = m.MovieId AND mg.GenreId = g.GenreId
+);
+
+/* Banners (no title/subtitle columns anymore) */
+INSERT INTO HomeBanners (ImagePath, LinkType, MovieId, TargetUrl, SortOrder, IsActive, StartDate, EndDate)
+SELECT *
+FROM (VALUES
+    ('/uploads/banners/dune.jpg', N'MOVIE', (SELECT MovieId FROM Movies WHERE Title = N'Chú Thuật Hồi Chiến 0 – Tái Khởi Chiếu'), NULL, 1, 1, '2024-06-01', '2024-08-15'),
+    ('/uploads/banners/spiderman.jpg', N'MOVIE', (SELECT MovieId FROM Movies WHERE Title = N'Mộ Đom Đóm - K (Phụ đề)'), NULL, 2, 1, '2024-06-20', '2024-09-01'),
+    ('/uploads/banners/insideout2.jpg', N'MOVIE', (SELECT MovieId FROM Movies WHERE Title = N'Wicked: Phần 2 - K'), NULL, 3, 1, '2024-06-10', NULL),
+    ('/uploads/banners/summer-sale.jpg', N'URL', NULL, '/promo/summer-sale', 4, 1, '2024-06-01', '2024-07-31')
+) AS payload(ImagePath, LinkType, MovieId, TargetUrl, SortOrder, IsActive, StartDate, EndDate)
+WHERE NOT EXISTS (
+    SELECT 1 FROM HomeBanners hb
+    WHERE hb.ImagePath = payload.ImagePath
+      AND ISNULL(hb.TargetUrl, '') = ISNULL(payload.TargetUrl, '')
+);
+
+/* People */
+MERGE INTO People AS t
+USING (VALUES
+    (N'Sunghoo Park', N'Đạo diễn Nhật Bản đứng sau Jujutsu Kaisen 0.'),
+    (N'Megumi Ogata', N'Diễn viên lồng tiếng cho Yuta Okkotsu.'),
+    (N'Kana Hanazawa', N'Thủ vai Rika Orimoto.'),
+    (N'Khương Ngọc', N'Đạo diễn Cục Vàng Của Ngoại.'),
+    (N'Việt Hương', N'Diễn viên chính Cục Vàng Của Ngoại.'),
+    (N'Hồng Đào', N'Diễn viên gạo cội.'),
+    (N'Băng Di', N'Diễn viên trẻ.'),
+    (N'Jon M. Chu', N'Đạo diễn Wicked: Part Two.'),
+    (N'Cynthia Erivo', N'Thủ vai Elphaba.'),
+    (N'Ariana Grande', N'Thủ vai Glinda.')
+) AS p(FullName, Bio)
+ON t.FullName = p.FullName
+WHEN NOT MATCHED THEN INSERT(FullName, Bio) VALUES (p.FullName, p.Bio);
+
+/* Movie credits */
+INSERT INTO MovieCredits (MovieId, PersonId, CreditType, CharacterName, SortOrder)
+SELECT m.MovieId, ppl.PersonId, c.CreditType, c.CharacterName, c.SortOrder
+FROM (VALUES
+    (N'Chú Thuật Hồi Chiến 0 – Tái Khởi Chiếu', N'Sunghoo Park', N'Director', NULL, 1),
+    (N'Chú Thuật Hồi Chiến 0 – Tái Khởi Chiếu', N'Megumi Ogata', N'Actor', N'Yuta Okkotsu', 1),
+    (N'Chú Thuật Hồi Chiến 0 – Tái Khởi Chiếu', N'Kana Hanazawa', N'Actor', N'Rika Orimoto', 2),
+    (N'Cục Vàng Của Ngoại', N'Khương Ngọc', N'Director', NULL, 1),
+    (N'Cục Vàng Của Ngoại', N'Việt Hương', N'Actor', NULL, 1),
+    (N'Cục Vàng Của Ngoại', N'Hồng Đào', N'Actor', NULL, 2),
+    (N'Cục Vàng Của Ngoại', N'Băng Di', N'Actor', NULL, 3),
+    (N'Wicked: Phần 2 - K', N'Jon M. Chu', N'Director', NULL, 1),
+    (N'Wicked: Phần 2 - K', N'Cynthia Erivo', N'Actor', N'Elphaba', 1),
+    (N'Wicked: Phần 2 - K', N'Ariana Grande', N'Actor', N'Glinda', 2)
+) AS c(Title, FullName, CreditType, CharacterName, SortOrder)
+JOIN Movies m ON m.Title = c.Title
+JOIN People ppl ON ppl.FullName = c.FullName
+WHERE NOT EXISTS (
+    SELECT 1 FROM MovieCredits mc
+    WHERE mc.MovieId = m.MovieId AND mc.PersonId = ppl.PersonId AND mc.CreditType = c.CreditType
+);
+GO
+
+/* Seed sample auditoriums */
+USE CinemaBooking_Backlog;
+GO
+INSERT INTO Auditoriums (Name, IsActive)
+SELECT v.Name, 1
+FROM (VALUES
+    (N'Phòng 1'), (N'Phòng 2'), (N'Phòng 3')
+) AS v(Name)
+WHERE NOT EXISTS (
+    SELECT 1 FROM Auditoriums a WHERE a.Name = v.Name
+);
+GO

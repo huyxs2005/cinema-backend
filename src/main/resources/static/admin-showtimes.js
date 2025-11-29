@@ -3,7 +3,8 @@ const showtimeApi = {
     detail: (id) => `/api/admin/showtimes/${id}`,
     create: "/api/admin/showtimes",
     update: (id) => `/api/admin/showtimes/${id}`,
-    deactivate: (id) => `/api/admin/showtimes/${id}`,
+    delete: (id) => `/api/admin/showtimes/${id}`,
+    toggleActive: (id, active) => `/api/admin/showtimes/${id}/active?active=${active}`,
     auditoriums: "/api/admin/showtime-options/auditoriums"
 };
 
@@ -23,6 +24,7 @@ const showtimeState = {
     submitting: false,
     repeatDayButtons: []
 };
+const showtimeTextCompare = new Intl.Collator("vi", { sensitivity: "base" });
 var createDebounce = window.__ADMIN_DEBOUNCE_FACTORY__;
 if (typeof createDebounce !== "function") {
     createDebounce = function (fn, delay = 300) {
@@ -288,8 +290,13 @@ function renderShowtimeTable(items) {
         return;
     }
     tbody.innerHTML = "";
-    items.forEach((item, index) => {
+    const sorted = items.slice().sort((a, b) =>
+        showtimeTextCompare.compare(a?.movieTitle || "", b?.movieTitle || "")
+    );
+    sorted.forEach((item, index) => {
         const tr = document.createElement("tr");
+        const toggleLabel = item.active ? "Vô hiệu hóa" : "Kích hoạt";
+        const targetActive = item.active ? "false" : "true";
         tr.innerHTML = `
             <td>${index + 1 + showtimeState.page * SHOWTIME_PAGE_SIZE}</td>
             <td>
@@ -300,20 +307,49 @@ function renderShowtimeTable(items) {
             <td>${formatDateTimeDisplay(item.endTime)}</td>
             <td>${renderShowtimeStatus(item.active)}</td>
             <td>
-                <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-outline-light btn-sm" data-edit="${item.id}">Sửa</button>
-                    <button type="button" class="btn btn-outline-danger btn-sm" data-delete="${item.id}">Xóa</button>
+                <div class="user-action-menu-wrapper">
+                    <button type="button"
+                            class="btn btn-outline-light btn-sm action-menu-toggle"
+                            aria-haspopup="true"
+                            aria-expanded="false"
+                            title="Mở hành động">⋮</button>
+                    <div class="user-action-menu" role="menu">
+                        <button type="button" data-edit="${item.id}" data-menu-role="edit">Sửa</button>
+                        <button type="button"
+                                data-showtime-toggle="${item.id}"
+                                data-target-active="${targetActive}"
+                                data-menu-role="toggle">${toggleLabel}</button>
+                        <button type="button"
+                                data-showtime-delete="${item.id}"
+                                data-menu-role="delete">Xóa</button>
+                    </div>
                 </div>
             </td>
         `;
         tbody.appendChild(tr);
     });
+    window.AdminActionMenus?.init(tbody);
     tbody.querySelectorAll("[data-edit]").forEach((btn) =>
-        btn.addEventListener("click", () => editShowtime(Number(btn.dataset.edit)))
+        btn.addEventListener("click", () => {
+            window.AdminActionMenus?.closeAll();
+            editShowtime(Number(btn.dataset.edit));
+        })
     );
-    tbody.querySelectorAll("[data-delete]").forEach((btn) =>
-        btn.addEventListener("click", () => deleteShowtime(Number(btn.dataset.delete)))
-    );
+    tbody.querySelectorAll("[data-showtime-toggle]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const id = Number(btn.dataset.showtimeToggle);
+            const targetActive = btn.dataset.targetActive === "true";
+            window.AdminActionMenus?.closeAll();
+            confirmToggleShowtime(id, targetActive);
+        });
+    });
+    tbody.querySelectorAll("[data-showtime-delete]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const id = Number(btn.dataset.showtimeDelete);
+            window.AdminActionMenus?.closeAll();
+            confirmDeleteShowtime(id);
+        });
+    });
 }
 
 function renderShowtimeStatus(active) {
@@ -517,7 +553,37 @@ async function editShowtime(id) {
     }
 }
 
-function deleteShowtime(id) {
+function confirmToggleShowtime(id, shouldActivate) {
+    const actionLabel = shouldActivate ? "kích hoạt" : "xóa";
+    const confirmAction = () => toggleShowtimeActive(id, shouldActivate);
+    if (typeof openAdminConfirmDialog === "function") {
+        openAdminConfirmDialog({
+            title: `${shouldActivate ? "Kích hoạt" : "Xóa"} suất chiếu`,
+            message: `Bạn có chắc muốn ${actionLabel} suất chiếu này?`,
+            confirmLabel: "Xác nhận",
+            confirmVariant: shouldActivate ? "primary" : "danger",
+            cancelLabel: "Hủy",
+            onConfirm: confirmAction
+        });
+    } else if (confirm(`Bạn có chắc muốn ${actionLabel} suất chiếu này?`)) {
+        confirmAction();
+    }
+}
+
+async function toggleShowtimeActive(id, shouldActivate) {
+    try {
+        const response = await fetch(showtimeApi.toggleActive(id, shouldActivate), { method: "PATCH" });
+        if (!response.ok) {
+            throw new Error("Không thể cập nhật trạng thái suất chiếu");
+        }
+        fetchShowtimes(showtimeState.page);
+        showtimeDataBus.dispatch("showtimes");
+    } catch (error) {
+        alert(error.message);
+    }
+}
+
+function confirmDeleteShowtime(id) {
     const confirmAction = () => performDeleteShowtime(id);
     if (typeof openAdminConfirmDialog === "function") {
         openAdminConfirmDialog({
@@ -535,7 +601,7 @@ function deleteShowtime(id) {
 
 async function performDeleteShowtime(id) {
     try {
-        const response = await fetch(showtimeApi.deactivate(id), { method: "DELETE" });
+        const response = await fetch(showtimeApi.delete(id), { method: "DELETE" });
         if (!response.ok) throw new Error("Không thể xóa suất chiếu");
         fetchShowtimes(showtimeState.page);
         showtimeDataBus.dispatch("showtimes");

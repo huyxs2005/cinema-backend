@@ -1,9 +1,10 @@
-﻿const promotionApi = {
+const promotionApi = {
     list: "/api/admin/promotions",
     detail: (id) => `/api/admin/promotions/${id}`,
     create: "/api/admin/promotions",
     update: (id) => `/api/admin/promotions/${id}`,
     delete: (id) => `/api/admin/promotions/${id}`,
+    toggleActive: (id, active) => `/api/admin/promotions/${id}/active?active=${active}`,
     upload: "/api/admin/uploads/promotion"
 };
 
@@ -25,6 +26,8 @@ const promotionState = {
         toDate: ""
     }
 };
+
+const promotionTextCompare = new Intl.Collator("vi", { sensitivity: "base" });
 
 var promotionDebounceFactory = window.__ADMIN_DEBOUNCE_FACTORY__;
 if (typeof promotionDebounceFactory !== "function") {
@@ -132,11 +135,15 @@ function renderPromotionTable(items) {
         return;
     }
     tbody.innerHTML = "";
-    items.forEach((item, index) => {
+    const sortedItems = items.slice().sort((a, b) =>
+        promotionTextCompare.compare(a?.title || "", b?.title || "")
+    );
+    sortedItems.forEach((item, index) => {
         const rowNumber = index + 1 + promotionState.page * PROMOTION_PAGE_SIZE;
         const statusBadge = item.active
             ? '<span class="badge bg-success">ON</span>'
             : '<span class="badge bg-secondary">OFF</span>';
+        const toggleLabel = item.active ? "Vô hiệu hóa" : "Kích hoạt";
         const tr = document.createElement("tr");
         tr.innerHTML = `
             <td>${rowNumber}</td>
@@ -147,19 +154,45 @@ function renderPromotionTable(items) {
             <td>${statusBadge}</td>
             <td>${formatDateTimeDisplay(item.updatedAt)}</td>
             <td>
-                <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-outline-light btn-sm" data-edit="${item.id}">Sửa</button>
-                    <button type="button" class="btn btn-outline-danger btn-sm" data-delete="${item.id}">Xóa</button>
+                <div class="user-action-menu-wrapper">
+                    <button type="button"
+                            class="btn btn-outline-light btn-sm action-menu-toggle"
+                            aria-haspopup="true"
+                            aria-expanded="false"
+                            title="Mở hành động">⋮</button>
+                    <div class="user-action-menu" role="menu">
+                        <button type="button" data-edit="${item.id}" data-menu-role="edit">Sửa</button>
+                        <button type="button"
+                                data-promotion-toggle="${item.id}"
+                                data-target-active="${item.active ? "false" : "true"}"
+                                data-menu-role="toggle">${toggleLabel}</button>
+                        <button type="button" data-delete="${item.id}" data-menu-role="delete">Xóa</button>
+                    </div>
                 </div>
             </td>
         `;
         tbody.appendChild(tr);
     });
+    window.AdminActionMenus?.init(tbody);
     tbody.querySelectorAll("[data-edit]").forEach((btn) => {
-        btn.addEventListener("click", () => editPromotion(Number(btn.dataset.edit)));
+        btn.addEventListener("click", () => {
+            window.AdminActionMenus?.closeAll();
+            editPromotion(Number(btn.dataset.edit));
+        });
+    });
+    tbody.querySelectorAll("[data-promotion-toggle]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const id = Number(btn.dataset.promotionToggle);
+            const shouldActivate = btn.dataset.targetActive === "true";
+            window.AdminActionMenus?.closeAll();
+            confirmTogglePromotion(id, shouldActivate);
+        });
     });
     tbody.querySelectorAll("[data-delete]").forEach((btn) => {
-        btn.addEventListener("click", () => deletePromotion(Number(btn.dataset.delete)));
+        btn.addEventListener("click", () => {
+            window.AdminActionMenus?.closeAll();
+            deletePromotion(Number(btn.dataset.delete));
+        });
     });
 }
 
@@ -318,6 +351,39 @@ async function editPromotion(id) {
         openAdminNotice?.({
             title: "Thông báo",
             message: error.message || "Không thể tải khuyến mãi",
+            variant: "warning"
+        });
+    }
+}
+
+function confirmTogglePromotion(id, shouldActivate) {
+    const actionLabel = shouldActivate ? "kích hoạt" : "vô hiệu hóa";
+    if (typeof openAdminConfirmDialog === "function") {
+        openAdminConfirmDialog({
+            title: `${shouldActivate ? "Kích hoạt" : "Vô hiệu hóa"} khuyến mãi`,
+            message: `Bạn có chắc muốn ${actionLabel} khuyến mãi này?`,
+            confirmLabel: "Xác nhận",
+            confirmVariant: shouldActivate ? "primary" : "danger",
+            cancelLabel: "Hủy",
+            onConfirm: () => togglePromotionActive(id, shouldActivate)
+        });
+    } else if (confirm(`Bạn có chắc muốn ${actionLabel} khuyến mãi này?`)) {
+        togglePromotionActive(id, shouldActivate);
+    }
+}
+
+async function togglePromotionActive(id, shouldActivate) {
+    try {
+        const response = await fetch(promotionApi.toggleActive(id, shouldActivate), { method: "PATCH" });
+        if (!response.ok) {
+            throw new Error("Không thể cập nhật trạng thái khuyến mãi");
+        }
+        fetchPromotions(promotionState.page);
+        promotionDataBus.dispatch("promotions");
+    } catch (error) {
+        openAdminNotice?.({
+            title: "Thông báo",
+            message: error.message || "Không thể cập nhật trạng thái khuyến mãi",
             variant: "warning"
         });
     }

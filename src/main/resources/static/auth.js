@@ -307,7 +307,6 @@ function bindForgotForm() {
     const stepEmail = document.getElementById("forgotStepEmail");
     const stepCode = document.getElementById("forgotStepCode");
     const stepReset = document.getElementById("forgotStepReset");
-    const emailDisplay = document.getElementById("forgotEmailDisplay");
     const emailHidden = document.getElementById("forgotEmailHidden");
     const countdownLabel = document.getElementById("forgotCountdown");
     const resendBtn = document.getElementById("forgotResendBtn");
@@ -330,9 +329,6 @@ function bindForgotForm() {
         await handleRequest(AuthAPI.forgot, { email: cachedEmail }, messageEl, () => {
             if (emailHidden) {
                 emailHidden.value = cachedEmail;
-            }
-            if (emailDisplay) {
-                emailDisplay.textContent = cachedEmail;
             }
             switchForgotStep(stepEmail, stepCode, stepReset);
             startForgotCountdown(countdownLabel, resendBtn, () => {

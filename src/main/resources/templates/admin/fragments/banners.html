@@ -1,0 +1,166 @@
+<section id="crud-banners" class="admin-tab-panel" th:fragment="banners-panel">
+            <div class="row g-4">
+                <div class="col-lg-4">
+                    <div class="card bg-dark text-light shadow">
+                        <div class="card-body">
+                            <h2 class="h5 mb-3" id="formTitle">Thêm banner mới</h2>
+                            <form id="bannerForm" novalidate>
+                                <input type="hidden" id="bannerId">
+                                <div class="mb-3">
+                                    <label for="imagePath" class="form-label">Đường dẫn ảnh <span class="text-danger">*</span></label>
+                                    <div class="image-upload-field">
+                                        <input type="text" class="form-control" id="imagePath" placeholder="/uploads/banners/example.jpg" readonly>
+                                        <button type="button" class="btn btn-outline-light" id="selectImageBtn">Chọn ảnh</button>
+                                        <input type="file" id="bannerImageFile" accept="image/*" hidden>
+                                    </div>
+                                    <small class="text-muted d-block mt-1" id="imagePathHint">Chưa có ảnh nào được tải lên.</small>
+                                    <div class="text-danger small mt-1" id="imagePathError"></div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="linkType" class="form-label">Loại liên kết <span class="text-danger">*</span></label>
+                                    <select id="linkType" class="form-select" required>
+                                        <option value="MOVIE">Movie</option>
+                                        <option value="PROMO">Khuyến mãi</option>
+                                        <option value="URL">URL</option>
+                                    </select>
+                                    <div class="text-danger small mt-1" id="linkTypeError"></div>
+                                </div>
+                <div class="mb-3" id="movieSelectGroup">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <label for="movieSearchInput" class="form-label mb-0">Chọn phim</label>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="movieClearBtn">Xóa chọn</button>
+                    </div>
+                    <input type="text" class="form-control mt-2" id="movieSearchInput" placeholder="Tìm kiếm tên phim hoặc tên gốc...">
+                    <small class="text-muted d-block mt-1">Danh sách tự động lấy từ dữ liệu phim hiện có.</small>
+                    <div class="movie-suggestion-list" id="movieSuggestionList"></div>
+                                    <div class="movie-preview mt-3" id="moviePreview"></div>
+                                    <div class="text-danger small mt-1" id="movieSelectError"></div>
+                                </div>
+                <div class="mb-3 d-none" id="promotionSelectGroup">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <label for="promotionSearchInput" class="form-label mb-0">Chọn khuyến mãi</label>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="promotionClearBtn">Xóa chọn</button>
+                    </div>
+                    <input type="text" class="form-control mt-2" id="promotionSearchInput" placeholder="Tìm kiếm khuyến mãi">
+                    <small class="text-muted d-block mt-1">Danh sách tự động lấy từ mục Khuyến mãi.</small>
+                    <div class="movie-suggestion-list movie-suggestion-list--hidden" id="promotionSuggestionList"></div>
+                    <div class="movie-preview mt-3 movie-preview--hidden" id="promotionPreview"></div>
+                    <div class="text-danger small mt-1" id="promotionSelectError"></div>
+                </div>
+                                <div class="mb-3" id="targetUrlGroup">
+                                    <label for="targetUrl" class="form-label">Target URL</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="targetUrl" maxlength="500" placeholder="/promo/khuyen-mai">
+                                        <button class="btn btn-outline-light" type="button" id="previewTargetUrl">Mở thử</button>
+                                    </div>
+                                    <small class="text-muted d-block mt-1">Ví dụ: /promo/khuyen-mai hoặc https://doi-tac.com/su-kien</small>
+                                    <div class="text-danger small mt-1" id="targetUrlError"></div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="sortOrder" class="form-label">Thứ tự <span class="text-danger">*</span></label>
+                                        <div class="numeric-stepper" data-stepper>
+                                            <input type="number"
+                                                   class="form-control"
+                                                   id="sortOrder"
+                                                   min="1"
+                                                   max="100"
+                                                   inputmode="numeric"
+                                                   pattern="[0-9]*"
+                                                   step="1"
+                                                   maxlength="3"
+                                                   data-numeric-only="true"
+                                                   required>
+                                            <div class="numeric-stepper-controls">
+                                                <button type="button"
+                                                        class="numeric-stepper-btn numeric-stepper-btn--up"
+                                                        data-step="1"
+                                                        aria-label="Tăng thứ tự">
+                                                    <span class="numeric-stepper-icon"></span>
+                                                    <span class="visually-hidden">Tăng</span>
+                                                </button>
+                                                <button type="button"
+                                                        class="numeric-stepper-btn numeric-stepper-btn--down"
+                                                        data-step="-1"
+                                                        aria-label="Giảm thứ tự">
+                                                    <span class="numeric-stepper-icon"></span>
+                                                    <span class="visually-hidden">Giảm</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="text-danger small mt-1" id="sortOrderError"></div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="isActive" class="form-label d-block">Trạng thái</label>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="isActive" checked>
+                                            <label class="form-check-label" for="isActive">Kích hoạt</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="startDate" class="form-label">Ngày bắt đầu</label>
+                                        <input type="date" class="form-control" id="startDate">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="endDate" class="form-label">Ngày kết thúc</label>
+                                        <input type="date" class="form-control" id="endDate">
+                                    </div>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-danger flex-grow-1">Lưu banner</button>
+                                    <button type="button" id="resetFormBtn" class="btn btn-outline-light">Làm mới</button>
+                                </div>
+                                <p class="text-warning mt-3" id="formMessage"></p>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-8">
+                    <div class="card bg-dark text-light shadow">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h2 class="h5 mb-0">Danh sách banner</h2>
+                                <span class="badge bg-secondary" id="bannerCount">0 items</span>
+                            </div>
+                            <form class="row g-2 align-items-end mb-3" id="bannerFilterForm">
+                                <div class="col-md-6">
+                                    <label for="bannerSearchKeyword" class="form-label">Từ khóa</label>
+                                    <input type="text" class="form-control" id="bannerSearchKeyword" placeholder="Nhập tiêu đề hoặc đường dẫn">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="bannerStatusFilter" class="form-label">Trạng thái</label>
+                                    <select class="form-select" id="bannerStatusFilter">
+                                        <option value="">Tất cả</option>
+                                        <option value="true">Đang hiển thị</option>
+                                        <option value="false">Tắt</option>
+                                    </select>
+                                </div>
+                            </form>
+                            <div class="table-responsive">
+                                <table class="table table-dark table-striped align-middle" id="bannerTable">
+                                    <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Tiêu đề</th>
+                                        <th>Loại</th>
+                                        <th>Thứ tự</th>
+                                        <th>Hiển thị</th>
+                                        <th>Ngày</th>
+                                        <th>Thao tác</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr>
+                                        <td colspan="7" class="text-center py-4 text-light">Đang tải dữ liệu...</td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>

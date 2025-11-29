@@ -3,7 +3,8 @@ const auditoriumApi = {
     detail: (id) => `/api/admin/auditoriums/${id}`,
     create: "/api/admin/auditoriums",
     update: (id) => `/api/admin/auditoriums/${id}`,
-    delete: (id) => `/api/admin/auditoriums/${id}`
+    delete: (id) => `/api/admin/auditoriums/${id}`,
+    toggleActive: (id, active) => `/api/admin/auditoriums/${id}/active?active=${active}`
 };
 
 const auditoriumDataBus = window.AdminDataBus || {
@@ -21,6 +22,7 @@ const auditoriumState = {
     totalPages: 0,
     submitting: false
 };
+const auditoriumTextCompare = new Intl.Collator("vi", { sensitivity: "base" });
 var createDebounce = window.__ADMIN_DEBOUNCE_FACTORY__;
 if (typeof createDebounce !== "function") {
     createDebounce = function (fn, delay = 300) {
@@ -40,6 +42,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 async function initAuditoriumAdmin() {
+    initNumericStepperControls();
     bindAuditoriumForm();
     bindAuditoriumFilters();
     fetchAuditoriums();
@@ -107,8 +110,12 @@ function renderAuditoriumTable(items) {
         return;
     }
     tbody.innerHTML = "";
-    items.forEach((item, index) => {
+    const sortedItems = items.slice().sort((a, b) =>
+        auditoriumTextCompare.compare(a?.name || "", b?.name || "")
+    );
+    sortedItems.forEach((item, index) => {
         const totalSeats = calculateTotalSeats(item.numberOfRows, item.numberOfColumns);
+        const toggleLabel = item.active ? "Vô hiệu hóa" : "Kích hoạt";
         const tr = document.createElement("tr");
         tr.innerHTML = `
             <td>${index + 1 + auditoriumState.page * AUD_PAGE_SIZE}</td>
@@ -118,19 +125,45 @@ function renderAuditoriumTable(items) {
             <td>${totalSeats ?? "-"}</td>
             <td>${renderAuditoriumStatus(item.active)}</td>
             <td>
-                <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-outline-light btn-sm" data-edit="${item.id}">Sửa</button>
-                    <button type="button" class="btn btn-outline-danger btn-sm" data-delete="${item.id}">Xóa</button>
+                <div class="user-action-menu-wrapper">
+                    <button type="button"
+                            class="btn btn-outline-light btn-sm action-menu-toggle"
+                            aria-haspopup="true"
+                            aria-expanded="false"
+                            title="Mở hành động">⋮</button>
+                    <div class="user-action-menu" role="menu">
+                        <button type="button" data-edit="${item.id}" data-menu-role="edit">Sửa</button>
+                        <button type="button"
+                                data-toggle="${item.id}"
+                                data-target-active="${item.active ? "false" : "true"}"
+                                data-menu-role="toggle">${toggleLabel}</button>
+                        <button type="button" data-delete="${item.id}" data-menu-role="delete">Xóa</button>
+                    </div>
                 </div>
             </td>
         `;
         tbody.appendChild(tr);
     });
+    window.AdminActionMenus?.init(tbody);
     tbody.querySelectorAll("[data-edit]").forEach((btn) =>
-        btn.addEventListener("click", () => editAuditorium(Number(btn.dataset.edit)))
+        btn.addEventListener("click", () => {
+            window.AdminActionMenus?.closeAll();
+            editAuditorium(Number(btn.dataset.edit));
+        })
+    );
+    tbody.querySelectorAll("[data-toggle]").forEach((btn) =>
+        btn.addEventListener("click", () => {
+            const id = Number(btn.dataset.toggle);
+            const shouldActivate = btn.dataset.targetActive === "true";
+            window.AdminActionMenus?.closeAll();
+            confirmToggleAuditorium(id, shouldActivate);
+        })
     );
     tbody.querySelectorAll("[data-delete]").forEach((btn) =>
-        btn.addEventListener("click", () => deleteAuditorium(Number(btn.dataset.delete)))
+        btn.addEventListener("click", () => {
+            window.AdminActionMenus?.closeAll();
+            deleteAuditorium(Number(btn.dataset.delete));
+        })
     );
 }
 
@@ -313,12 +346,48 @@ function deleteAuditorium(id) {
     }
 }
 
+function confirmToggleAuditorium(id, shouldActivate) {
+    const actionLabel = shouldActivate ? "kích hoạt" : "vô hiệu hóa";
+    const confirmAction = () => toggleAuditoriumActive(id, shouldActivate);
+    if (typeof openAdminConfirmDialog === "function") {
+        openAdminConfirmDialog({
+            title: `${shouldActivate ? "Kích hoạt" : "Vô hiệu hóa"} phòng chiếu`,
+            message: `Bạn có chắc muốn ${actionLabel} phòng chiếu này?`,
+            confirmLabel: "Xác nhận",
+            confirmVariant: shouldActivate ? "primary" : "danger",
+            cancelLabel: "Hủy",
+            onConfirm: confirmAction
+        });
+    } else if (confirm(`Bạn có chắc muốn ${actionLabel} phòng chiếu này?`)) {
+        confirmAction();
+    }
+}
+
+async function toggleAuditoriumActive(id, shouldActivate) {
+    try {
+        const response = await fetch(auditoriumApi.toggleActive(id, shouldActivate), { method: "PATCH" });
+        if (!response.ok) {
+            throw new Error("Không thể cập nhật trạng thái phòng chiếu");
+        }
+        fetchAuditoriums(auditoriumState.page);
+        auditoriumDataBus.dispatch("auditoriums");
+    } catch (error) {
+        alert(error.message);
+    }
+}
+
 async function performDeleteAuditorium(id) {
     try {
         const response = await fetch(auditoriumApi.delete(id), { method: "DELETE" });
         if (!response.ok) {
-            const error = await response.json().catch(() => ({}));
-            throw new Error(error.message || "Không thể xóa phòng chiếu");
+            let message = "Không thể xóa phòng chiếu";
+            if (response.status === 409) {
+                message = "CONFLICT";
+            } else {
+                const error = await response.json().catch(() => ({}));
+                message = error.message || message;
+            }
+            throw new Error(message);
         }
         showSuccessToast("Đã xóa phòng chiếu");
         auditoriumDataBus.dispatch("auditoriums");
@@ -327,7 +396,19 @@ async function performDeleteAuditorium(id) {
             window.refreshShowtimeAuditoriums();
         }
     } catch (error) {
-        alert(error.message);
+        const conflictDetected =
+            error.message === "CONFLICT"
+            || (error.message && error.message.includes("FK_Showtimes_Auditoriums"))
+            || (error.message && error.message.includes("suất chiếu"));
+        if (conflictDetected) {
+            openAdminNotice?.({
+                title: "Không thể xóa",
+                message: "Phòng chiếu này vẫn còn suất chiếu đang sử dụng. Hãy xóa hoặc chuyển tất cả suất chiếu trước khi xóa phòng.",
+                variant: "warning"
+            });
+        } else {
+            alert(error.message);
+        }
     }
 }
 
@@ -351,4 +432,41 @@ function numberFromInput(value) {
     }
     const num = Number(value);
     return Number.isNaN(num) ? null : num;
+}
+
+function initNumericStepperControls(context = document) {
+    context.querySelectorAll(".numeric-stepper").forEach((wrapper) => {
+        if (wrapper.dataset.stepperInit === "true") {
+            return;
+        }
+        const input = wrapper.querySelector("input[type='number']");
+        if (!input) {
+            return;
+        }
+        wrapper.dataset.stepperInit = "true";
+        wrapper.querySelectorAll(".numeric-stepper-btn").forEach((button) => {
+            const direction = Number(button.dataset.step || 1);
+            button.addEventListener("click", () => adjustNumericInputValue(input, direction));
+        });
+    });
+}
+
+function adjustNumericInputValue(input, direction) {
+    const inputStep = Number(input.step) || 1;
+    const min = input.min !== "" ? Number(input.min) : null;
+    const max = input.max !== "" ? Number(input.max) : null;
+    let currentValue = Number(input.value);
+    if (Number.isNaN(currentValue)) {
+        currentValue = min !== null ? min : 0;
+    }
+    let nextValue = currentValue + direction * inputStep;
+    if (min !== null) {
+        nextValue = Math.max(nextValue, min);
+    }
+    if (max !== null) {
+        nextValue = Math.min(nextValue, max);
+    }
+    input.value = String(nextValue);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
 }

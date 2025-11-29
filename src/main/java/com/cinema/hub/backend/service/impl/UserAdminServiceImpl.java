@@ -6,6 +6,7 @@ import com.cinema.hub.backend.dto.common.PageResponse;
 import com.cinema.hub.backend.entity.Role;
 import com.cinema.hub.backend.entity.UserAccount;
 import com.cinema.hub.backend.repository.RoleRepository;
+import com.cinema.hub.backend.repository.SeatHoldRepository;
 import com.cinema.hub.backend.repository.UserAccountRepository;
 import com.cinema.hub.backend.service.UserAdminService;
 import com.cinema.hub.backend.specification.UserAccountSpecifications;
@@ -30,13 +31,16 @@ public class UserAdminServiceImpl implements UserAdminService {
     private final UserAccountRepository userAccountRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SeatHoldRepository seatHoldRepository;
 
     public UserAdminServiceImpl(UserAccountRepository userAccountRepository,
                                 RoleRepository roleRepository,
-                                PasswordEncoder passwordEncoder) {
+                                PasswordEncoder passwordEncoder,
+                                SeatHoldRepository seatHoldRepository) {
         this.userAccountRepository = userAccountRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
+        this.seatHoldRepository = seatHoldRepository;
     }
 
     @Override
@@ -113,6 +117,7 @@ public class UserAdminServiceImpl implements UserAdminService {
     public void delete(int id) {
         UserAccount user = getEntity(id);
         ensureActiveAdminRemains(user, false, user.getRole());
+        seatHoldRepository.deleteByUser_Id(user.getId());
         userAccountRepository.delete(user);
     }
 

@@ -25,6 +25,8 @@ public interface PromotionService {
 
     void delete(Long id);
 
+    PromotionResponseDto updateActiveStatus(Long id, boolean active);
+
     PageResponse<PromotionSummaryDto> getPublicPromotions(Pageable pageable);
 
     PromotionDetailDto getDetailBySlug(String slug);

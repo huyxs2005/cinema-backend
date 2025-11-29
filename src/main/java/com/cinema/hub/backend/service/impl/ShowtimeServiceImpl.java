@@ -104,10 +104,17 @@ public class ShowtimeServiceImpl implements ShowtimeService {
     }
 
     @Override
-    public void deactivate(int id) {
+    public void delete(int id) {
         Showtime showtime = getEntity(id);
-        showtime.setActive(Boolean.FALSE);
-        showtimeRepository.save(showtime);
+        showtimeSeatRepository.deleteByShowtime_Id(showtime.getId());
+        showtimeRepository.delete(showtime);
+    }
+
+    @Override
+    public ShowtimeResponse updateActiveStatus(int id, boolean active) {
+        Showtime showtime = getEntity(id);
+        showtime.setActive(active);
+        return showtimeMapper.toResponse(showtimeRepository.save(showtime));
     }
 
     @Override

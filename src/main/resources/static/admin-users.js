@@ -32,8 +32,7 @@ if (typeof createDebounce !== "function") {
     };
     window.__ADMIN_DEBOUNCE_FACTORY__ = createDebounce;
 }
-let actionMenuDocListenerBound = false;
-
+const userTextCompare = new Intl.Collator("vi", { sensitivity: "base" });
 const coalesce = (value, fallback) => (value === undefined || value === null ? fallback : value);
 const safeText = (value) => {
     if (value === undefined || value === null) {
@@ -197,7 +196,10 @@ function renderUserTable(items) {
     const currentUser = typeof window !== "undefined" ? window.CURRENT_USER ?? null : null;
     const currentUserId = currentUser?.userId ?? null;
     tbody.innerHTML = "";
-    items.forEach((item, index) => {
+    const sortedItems = items.slice().sort((a, b) =>
+        userTextCompare.compare(a?.fullName || "", b?.fullName || "")
+    );
+    sortedItems.forEach((item, index) => {
         const isSelf = currentUserId != null && item.userId === currentUserId;
         const tr = document.createElement("tr");
         const toggleLabel = item.active ? "Vô hiệu hóa" : "Kích hoạt";
@@ -571,20 +573,12 @@ function formatRelativeTime(value) {
 }
 
 function bindUserActionMenus(container) {
-    const toggles = container.querySelectorAll(".action-menu-toggle");
-    toggles.forEach((toggle) => {
-        toggle.addEventListener("click", (event) => {
-            event.stopPropagation();
-            const wrapper = toggle.closest(".user-action-menu-wrapper");
-            const alreadyOpen = wrapper.classList.contains("open");
-            closeAllActionMenus();
-            if (!alreadyOpen) {
-                wrapper.classList.add("open");
-                toggle.setAttribute("aria-expanded", "true");
-            }
-        });
-    });
-
+    if (!container) {
+        return;
+    }
+    if (window.AdminActionMenus) {
+        window.AdminActionMenus.init(container);
+    }
     container.querySelectorAll("[data-user-menu-action]").forEach((button) => {
         button.addEventListener("click", (event) => {
             event.preventDefault();
@@ -594,7 +588,7 @@ function bindUserActionMenus(container) {
             }
             const userId = Number(button.dataset.userMenuId);
             const action = button.dataset.userMenuAction;
-            closeAllActionMenus();
+            window.AdminActionMenus?.closeAll();
             if (action === "edit") {
                 editUser(userId);
             } else if (action === "toggle") {
@@ -604,21 +598,6 @@ function bindUserActionMenus(container) {
                 confirmDeleteUser(userId);
             }
         });
-    });
-
-    if (!actionMenuDocListenerBound) {
-        document.addEventListener("click", closeAllActionMenus);
-        actionMenuDocListenerBound = true;
-    }
-}
-
-function closeAllActionMenus() {
-    document.querySelectorAll(".user-action-menu-wrapper.open").forEach((wrapper) => {
-        wrapper.classList.remove("open");
-        const toggle = wrapper.querySelector(".action-menu-toggle");
-        if (toggle) {
-            toggle.setAttribute("aria-expanded", "false");
-        }
     });
 }
 

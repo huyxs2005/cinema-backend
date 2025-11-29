@@ -1,0 +1,128 @@
+<section id="crud-promotions" class="admin-tab-panel" th:fragment="promotions-panel">
+            <div class="row g-4">
+                <div class="col-lg-4">
+                    <div class="card bg-dark text-light shadow">
+                        <div class="card-body">
+                            <h2 class="h5 mb-3" id="promotionFormTitle">Thêm khuyến mãi</h2>
+                            <form id="promotionForm" novalidate>
+                                <input type="hidden" id="promotionId">
+                                <div id="promotionFormMessage" class="text-warning small mb-2"></div>
+                                <div class="mb-3">
+                                    <label for="promotionTitle" class="form-label">Tiêu đề <span class="text-danger">*</span></label>
+                                    <input type="text" id="promotionTitle" class="form-control" required>
+                                    <div class="text-danger small mt-1" id="promotionTitleError"></div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="promotionThumbnail" class="form-label">Ảnh thumbnail</label>
+                                    <div class="image-upload-field">
+                                        <input type="text" id="promotionThumbnail" class="form-control" placeholder="/uploads/promotions/thumb.jpg" readonly>
+                                        <button type="button" class="btn btn-outline-light" id="selectPromotionThumbnailBtn">Chọn ảnh</button>
+                                        <input type="file" id="promotionThumbnailFile" accept="image/*" hidden>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="promotionImgContent" class="form-label">Ảnh nội dung</label>
+                                    <div class="image-upload-field">
+                                        <input type="text" id="promotionImgContent" class="form-control" placeholder="/uploads/promotions/detail.jpg" readonly>
+                                        <button type="button" class="btn btn-outline-light" id="selectPromotionImgContentBtn">Chọn ảnh</button>
+                                        <input type="file" id="promotionImgContentFile" accept="image/*" hidden>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="promotionPublishedDate" class="form-label">Ngày phát hành <span class="text-danger">*</span></label>
+                                    <input type="date" id="promotionPublishedDate" class="form-control" required>
+                                    <div class="text-danger small mt-1" id="promotionPublishedDateError"></div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label d-block">Trạng thái</label>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="promotionActive" checked>
+                                        <label class="form-check-label" for="promotionActive">Kích hoạt</label>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="promotionContent" class="form-label">Nội dung chi tiết <span class="text-danger">*</span></label>
+                                    <textarea id="promotionContent" class="form-control" rows="6" required></textarea>
+                                    <div class="text-danger small mt-1" id="promotionContentError"></div>
+                                    <small class="text-muted d-block mt-1">Hỗ trợ HTML cơ bản (p, img, ul...).</small>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-danger flex-grow-1">Lưu khuyến mãi</button>
+                                    <button type="button" class="btn btn-outline-light" id="promotionResetBtn">Làm mới</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-8">
+                    <div class="card bg-dark text-light shadow">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h2 class="h5 mb-0">Danh sách khuyến mãi</h2>
+                                <span class="badge bg-secondary" id="promotionCount">0 items</span>
+                            </div>
+                            <div class="row g-2 align-items-end mb-3">
+                                <div class="col-lg-6">
+                                    <label for="promotionKeyword" class="form-label">Tìm kiếm</label>
+                                    <input type="text" id="promotionKeyword" class="form-control" placeholder="Tiêu đề, mô tả hoặc slug">
+                                </div>
+                                <div class="col-lg-6 d-flex align-items-end gap-2 flex-wrap">
+                                    <div class="d-flex gap-2 flex-grow-1">
+                                        <button type="button" id="promotionFilterApplyBtn" class="btn btn-outline-light flex-grow-1">Lọc</button>
+                                        <button type="button" id="promotionFilterResetBtn" class="btn btn-outline-secondary flex-grow-1">Xóa lọc</button>
+                                    </div>
+                                    <button type="button"
+                                            class="btn btn-outline-light ms-lg-auto text-nowrap"
+                                            data-bs-toggle="collapse"
+                                            data-bs-target="#promotionAdvancedFilters"
+                                            aria-expanded="false"
+                                            aria-controls="promotionAdvancedFilters">
+                                        Bộ lọc nâng cao
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="collapse" id="promotionAdvancedFilters">
+                                <div class="row g-2 mb-3">
+                                    <div class="col-md-4">
+                                        <label for="promotionStatus" class="form-label">Trạng thái</label>
+                                        <select id="promotionStatus" class="form-select">
+                                            <option value="">Tất cả</option>
+                                            <option value="true">Đang hiển thị</option>
+                                            <option value="false">Đã tắt</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="promotionFromDate" class="form-label">Từ ngày</label>
+                                        <input type="date" id="promotionFromDate" class="form-control">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="promotionToDate" class="form-label">Đến ngày</label>
+                                        <input type="date" id="promotionToDate" class="form-control">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-dark table-striped align-middle" id="promotionTable">
+                                    <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Tiêu đề</th>
+                                        <th>Ngày phát hành</th>
+                                        <th>Trạng thái</th>
+                                        <th>Cập nhật</th>
+                                        <th>Thao tác</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr>
+                                        <td colspan="6" class="text-center py-4 text-light">Đang tải dữ liệu...</td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-3" id="promotionPagination"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>

@@ -27,7 +27,7 @@ document.addEventListener("DOMContentLoaded", () => {
         })
         .then((data) => {
             if (!Array.isArray(data) || data.length === 0) {
-                renderPlaceholder("Kh�ng c� banner n�o dang ho?t d?ng");
+                renderPlaceholder("Không có banner nào dang họat động");
                 return;
             }
 
@@ -61,8 +61,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     altText = `Banner phim ${banner.movieId ?? ""}`.trim();
                 } else if (banner.linkType === "PROMO") {
                     altText = banner.promotionTitle
-                        ? `Khuy?n m�i ${banner.promotionTitle}`
-                        : "Banner khuy?n m�i HUB";
+                        ? `Khuyến mãi ${banner.promotionTitle}`
+                        : "Banner khuyến mãii HUB";
                 } else if (banner.linkType === "URL") {
                     altText = banner.targetUrl || altText;
                 }
@@ -87,7 +87,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
             }
         })
-        .catch(() => renderPlaceholder("Kh�ng th? t?i banner. Vui l�ng th? l?i sau."));
+        .catch(() => renderPlaceholder("Không thể tải banner. Vui lòng thử lại sau."));
 });
 
 function buildBannerUrl(banner) {

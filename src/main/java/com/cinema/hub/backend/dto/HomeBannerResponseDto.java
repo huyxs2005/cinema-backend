@@ -23,6 +23,7 @@ public class HomeBannerResponseDto {
 
     private Integer movieId;
     private String movieTitle;
+    private String movieOriginalTitle;
 
     private Long promotionId;
     private String promotionSlug;

@@ -86,6 +86,14 @@ public class PromotionServiceImpl implements PromotionService {
     }
 
     @Override
+    public PromotionResponseDto updateActiveStatus(Long id, boolean active) {
+        Promotion promotion = findByIdOrThrow(id);
+        promotion.setIsActive(active);
+        Promotion saved = promotionRepository.save(promotion);
+        return PromotionMapper.toResponse(saved);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public PageResponse<PromotionSummaryDto> getPublicPromotions(Pageable pageable) {
         Specification<Promotion> spec = Specification.where(PromotionSpecifications.hasStatus(true))

@@ -3,7 +3,8 @@ const adminBannersApi = {
     detail: (id) => `/api/admin/banners/${id}`,
     create: "/api/admin/banners",
     update: (id) => `/api/admin/banners/${id}`,
-    delete: (id) => `/api/admin/banners/${id}`
+    delete: (id) => `/api/admin/banners/${id}`,
+    toggleActive: (id, active) => `/api/admin/banners/${id}/active?active=${active}`
 };
 
 const bannerDataBus = window.AdminDataBus || {
@@ -11,12 +12,18 @@ const bannerDataBus = window.AdminDataBus || {
     subscribe: () => () => {}
 };
 
+const bannerTextCompare = new Intl.Collator("vi", { sensitivity: "base" });
+
 const movieOptionsMap = new Map();
+let allMovieOptions = [];
 let movieSelectReady = false;
 let pendingMovieSelection = null;
+let selectedMovieId = null;
 const promotionOptionsMap = new Map();
+let allPromotionOptions = [];
 let promotionSelectReady = false;
 let pendingPromotionSelection = null;
+let selectedPromotionId = null;
 let isEditing = false;
 let isSubmittingBanner = false;
 var createDebounce = window.__ADMIN_DEBOUNCE_FACTORY__;
@@ -58,12 +65,27 @@ function resolveBannerDisplayName(banner) {
     return "Khuyến mãi HUB";
 }
 
+function buildBannerTitleHtml(banner, primaryText) {
+    const primary = primaryText || "Banner";
+    const secondary =
+        banner && banner.linkType === "MOVIE" && banner.movieOriginalTitle
+            ? `<div class="banner-title-secondary">${banner.movieOriginalTitle}</div>`
+            : "";
+    return `
+        <div class="banner-title-primary">${primary}</div>
+        ${secondary}
+    `;
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     initImageUploadControls();
     initTargetUrlPreview();
     initMovieClearButton();
+    initMovieSearchInput();
+    initPromotionSearchInput();
     initPromotionClearButton();
     attachNumericOnlyHandlers();
+    initNumericStepperControls();
     loadMovieOptions();
     loadPromotionOptions();
     updatePromotionClearButtonState();
@@ -118,6 +140,7 @@ function initMovieClearButton() {
     if (!clearBtn) return;
     clearBtn.addEventListener("click", () => {
         setMovieSelection(null);
+        hideMovieSuggestions();
         updateMovieClearButtonState();
     });
 }
@@ -131,11 +154,32 @@ function updateMovieClearButtonState() {
     clearBtn.classList.toggle("btn-outline-secondary", !hasSelection);
 }
 
+function initMovieSearchInput() {
+    const searchInput = document.getElementById("movieSearchInput");
+    if (!searchInput) return;
+    const debounced = createDebounce(() => {
+        renderMovieSuggestions(searchInput.value || "");
+    }, 200);
+    searchInput.addEventListener("input", debounced);
+    searchInput.addEventListener("focus", () => {
+        renderMovieSuggestions(searchInput.value || "");
+    });
+    searchInput.addEventListener("blur", (event) => {
+        const nextFocus = event.relatedTarget;
+        const suggestionFocused = nextFocus?.classList?.contains("movie-suggestion-item");
+        if (suggestionFocused) {
+            return;
+        }
+        hideMovieSuggestions();
+    });
+}
+
 function initPromotionClearButton() {
     const clearBtn = document.getElementById("promotionClearBtn");
     if (!clearBtn) return;
     clearBtn.addEventListener("click", () => {
         setPromotionSelection(null);
+        hidePromotionSuggestions();
         updatePromotionClearButtonState();
     });
 }
@@ -152,6 +196,7 @@ function updatePromotionClearButtonState() {
 function refreshMovieOptionsFromBus() {
     pendingMovieSelection = getSelectedMovieId();
     loadMovieOptions();
+    fetchBanners();
 }
 
 function refreshPromotionOptionsFromBus() {
@@ -160,46 +205,93 @@ function refreshPromotionOptionsFromBus() {
 }
 
 async function loadMovieOptions() {
-    const select = document.getElementById("movieSelect");
-    if (!select) return;
-    select.innerHTML = `<option value="">-- Đang tải danh sách phim --</option>`;
+    const suggestionList = document.getElementById("movieSuggestionList");
+    if (!suggestionList) return;
+    suggestionList.innerHTML = `<p class="text-muted small mb-0">Đang tải danh sách phim...</p>`;
     movieOptionsMap.clear();
+    allMovieOptions = [];
     movieSelectReady = false;
     try {
         const response = await fetch("/api/movies/options");
         if (!response.ok) throw new Error("Không thể tải danh sách phim");
         const data = await response.json();
-        populateMovieSelect(data);
+        allMovieOptions = Array.isArray(data) ? data : [];
+        allMovieOptions.forEach((movie) => {
+            movieOptionsMap.set(String(movie.id), movie);
+        });
+        renderMovieSuggestions(document.getElementById("movieSearchInput")?.value || "");
     } catch (error) {
-        select.innerHTML = `<option value="">${error.message}</option>`;
+        suggestionList.innerHTML = `<p class="text-warning small mb-0">${error.message}</p>`;
     } finally {
         movieSelectReady = true;
         if (pendingMovieSelection !== null) {
             setMovieSelection(pendingMovieSelection);
             pendingMovieSelection = null;
+        } else {
+            updateMoviePreview(getSelectedMovieId());
         }
     }
 }
 
 function populateMovieSelect(movies) {
-    const select = document.getElementById("movieSelect");
-    if (!select) return;
-    select.innerHTML = `<option value="">-- Chọn phim đang chiếu hoặc sắp chiếu --</option>`;
-    if (!Array.isArray(movies) || movies.length === 0) {
-        select.innerHTML = `<option value="">Không có phim phù hợp</option>`;
+    allMovieOptions = Array.isArray(movies) ? movies.slice() : [];
+    const searchTerm = document.getElementById("movieSearchInput")?.value || "";
+    renderMovieSuggestions(searchTerm);
+}
+
+function renderMovieSuggestions(filterKeyword = "") {
+    const list = document.getElementById("movieSuggestionList");
+    if (!list) return;
+    const normalized = (filterKeyword || "").trim().toLowerCase();
+    if (!normalized) {
+        list.innerHTML = "";
+        list.classList.add("movie-suggestion-list--hidden");
         return;
     }
-    movies.forEach((movie) => {
-        movieOptionsMap.set(String(movie.id), movie);
-        const option = document.createElement("option");
-        option.value = movie.id;
-        option.textContent = `${movie.title} (${statusLabel(movie.status)})`;
-        select.appendChild(option);
+
+    const matches = allMovieOptions.filter((movie) => {
+        const title = (movie.title || "").toLowerCase();
+        const original = (movie.originalTitle || "").toLowerCase();
+        return title.includes(normalized) || original.includes(normalized);
     });
-    select.addEventListener("change", () => {
-        updateMoviePreview(getSelectedMovieId());
-        updateMovieClearButtonState();
+
+    if (!matches.length) {
+        list.innerHTML = `<p class="text-warning small mb-0">Không tìm thấy phim "${filterKeyword}".</p>`;
+        list.classList.remove("movie-suggestion-list--hidden");
+        return;
+    }
+
+    list.innerHTML = matches
+        .slice(0, 8)
+        .map((movie) => {
+            const original = movie.originalTitle
+                ? `<span class="movie-suggestion-secondary">${movie.originalTitle}</span>`
+                : "";
+            return `
+                <button type="button" class="movie-suggestion-item" data-movie-id="${movie.id}">
+                    <span class="movie-suggestion-primary">${movie.title || "Phim không tên"}</span>
+                    ${original}
+                    <span class="movie-suggestion-status">${statusLabel(movie.status)}</span>
+                </button>
+            `;
+        })
+        .join("");
+
+    list.querySelectorAll(".movie-suggestion-item").forEach((button) => {
+        button.addEventListener("click", () => {
+            const movieId = Number(button.dataset.movieId);
+            setMovieSelection(Number.isFinite(movieId) ? movieId : null);
+            hideMovieSuggestions();
+        });
     });
+    list.classList.remove("movie-suggestion-list--hidden");
+}
+
+function hideMovieSuggestions() {
+    const list = document.getElementById("movieSuggestionList");
+    if (!list) return;
+    list.innerHTML = "";
+    list.classList.add("movie-suggestion-list--hidden");
 }
 
 function statusLabel(status) {
@@ -216,20 +308,29 @@ function statusLabel(status) {
 }
 
 function getSelectedMovieId() {
-    const select = document.getElementById("movieSelect");
-    if (!select) return null;
-    const value = select.value;
-    return value ? Number(value) : null;
+    if (!movieSelectReady) {
+        return pendingMovieSelection ?? null;
+    }
+    return selectedMovieId;
 }
 
 function setMovieSelection(movieId) {
-    const select = document.getElementById("movieSelect");
-    if (!select) return;
     if (!movieSelectReady) {
         pendingMovieSelection = movieId ?? null;
         return;
     }
-    select.value = movieId ? String(movieId) : "";
+    selectedMovieId = movieId ?? null;
+    const searchInput = document.getElementById("movieSearchInput");
+    if (searchInput) {
+        if (movieId) {
+            const movie = movieOptionsMap.get(String(movieId));
+            searchInput.value = movie
+                ? movie.title || movie.originalTitle || ""
+                : "";
+        } else {
+            searchInput.value = "";
+        }
+    }
     updateMoviePreview(movieId);
     updateMovieClearButtonState();
 }
@@ -238,29 +339,36 @@ function updateMoviePreview(movieId) {
     const preview = document.getElementById("moviePreview");
     if (!preview) return;
     if (!movieId) {
-        preview.innerHTML = `<p class="text-muted mb-0">Chưa chọn phim.</p>`;
+        preview.classList.add("movie-preview--hidden");
+        preview.innerHTML = "";
         return;
     }
+    preview.classList.remove("movie-preview--hidden");
     const movie = movieOptionsMap.get(String(movieId));
     if (!movie) {
         preview.innerHTML = `<p class="text-warning mb-0">Không tìm thấy phim #${movieId}. Hãy chọn lại.</p>`;
         return;
     }
     const poster = movie.posterUrl || "https://via.placeholder.com/64x96.png?text=Poster";
+    const originalLine = movie.originalTitle && movie.originalTitle.trim()
+        ? `<span class="movie-preview-original">${movie.originalTitle}</span>`
+        : "";
     preview.innerHTML = `
         <img src="${poster}" alt="${movie.title}">
         <div class="movie-preview-info">
             <h6>${movie.title}</h6>
+            ${originalLine}
             <span>Trạng thái: ${statusLabel(movie.status)}</span>
         </div>
     `;
 }
 
 async function loadPromotionOptions() {
-    const select = document.getElementById("promotionSelect");
-    if (!select) return;
-    select.innerHTML = `<option value="">-- Đang tải danh sách khuyến mãi --</option>`;
+    const list = document.getElementById("promotionSuggestionList");
+    if (!list) return;
+    list.innerHTML = `<p class="text-muted small mb-0">Đang tải danh sách khuyến mãi...</p>`;
     promotionOptionsMap.clear();
+    allPromotionOptions = [];
     promotionSelectReady = false;
     try {
         const response = await fetch("/api/admin/promotions/options");
@@ -268,57 +376,117 @@ async function loadPromotionOptions() {
             throw new Error("Không thể tải danh sách khuyến mãi");
         }
         const data = await response.json();
-        renderPromotionOptions(data);
+        allPromotionOptions = Array.isArray(data) ? data : [];
+        allPromotionOptions.forEach((promo) => {
+            promotionOptionsMap.set(String(promo.id), promo);
+        });
+        renderPromotionSuggestions(document.getElementById("promotionSearchInput")?.value || "");
     } catch (error) {
-        select.innerHTML = `<option value="">${error.message}</option>`;
+        list.innerHTML = `<p class="text-warning small mb-0">${error.message}</p>`;
     } finally {
         promotionSelectReady = true;
         if (pendingPromotionSelection !== null) {
             setPromotionSelection(pendingPromotionSelection);
             pendingPromotionSelection = null;
+        } else {
+            updatePromotionPreview(getSelectedPromotionId());
         }
     }
 }
 
-function renderPromotionOptions(promotions) {
-    const select = document.getElementById("promotionSelect");
-    if (!select) {
+function renderPromotionSuggestions(filterKeyword = "") {
+    const list = document.getElementById("promotionSuggestionList");
+    if (!list) return;
+    const normalized = (filterKeyword || "").trim().toLowerCase();
+    if (!normalized) {
+        list.innerHTML = "";
+        list.classList.add("movie-suggestion-list--hidden");
         return;
     }
-    select.innerHTML = `<option value="">-- Chọn khuyến mãi đang hiển thị --</option>`;
-    if (!Array.isArray(promotions) || !promotions.length) {
-        select.innerHTML = `<option value="">Không có khuyến mãi phù hợp</option>`;
-        return;
-    }
-    promotions.forEach((promo) => {
-        promotionOptionsMap.set(String(promo.id), promo);
-        const option = document.createElement("option");
-        option.value = promo.id;
-        option.textContent = promo.title ?? `Khuyến mãi #${promo.id}`;
-        select.appendChild(option);
+
+    const matches = allPromotionOptions.filter((promo) => {
+        const title = (promo.title || "").toLowerCase();
+        const slug = (promo.slug || "").toLowerCase();
+        return title.includes(normalized) || slug.includes(normalized);
     });
-    select.addEventListener("change", () => {
-        updatePromotionPreview(getSelectedPromotionId());
-        updatePromotionClearButtonState();
+
+    if (!matches.length) {
+        list.innerHTML = `<p class="text-warning small mb-0">Không tìm thấy khuyến mãi "${filterKeyword}".</p>`;
+        list.classList.remove("movie-suggestion-list--hidden");
+        return;
+    }
+
+    list.innerHTML = matches
+        .slice(0, 8)
+        .map((promo) => `
+            <button type="button" class="movie-suggestion-item" data-promo-id="${promo.id}">
+                <span class="movie-suggestion-primary">${promo.title || `Khuyến mãi #${promo.id}`}</span>
+            </button>
+        `)
+        .join("");
+
+    list.querySelectorAll(".movie-suggestion-item").forEach((button) => {
+        button.addEventListener("click", () => {
+            const promoId = Number(button.dataset.promoId);
+            setPromotionSelection(Number.isFinite(promoId) ? promoId : null);
+            hidePromotionSuggestions();
+        });
+    });
+    list.classList.remove("movie-suggestion-list--hidden");
+}
+
+function hidePromotionSuggestions() {
+    const list = document.getElementById("promotionSuggestionList");
+    if (!list) return;
+    list.innerHTML = "";
+    list.classList.add("movie-suggestion-list--hidden");
+}
+
+function initPromotionSearchInput() {
+    const searchInput = document.getElementById("promotionSearchInput");
+    if (!searchInput) return;
+    const debounced = createDebounce(() => {
+        renderPromotionSuggestions(searchInput.value || "");
+    }, 200);
+    searchInput.addEventListener("input", debounced);
+    searchInput.addEventListener("focus", () => {
+        renderPromotionSuggestions(searchInput.value || "");
+    });
+    searchInput.addEventListener("blur", (event) => {
+        const nextFocus = event.relatedTarget;
+        if (nextFocus && nextFocus.classList?.contains("movie-suggestion-item")) {
+            return;
+        }
+        hidePromotionSuggestions();
     });
 }
 
 function getSelectedPromotionId() {
-    const select = document.getElementById("promotionSelect");
-    if (!select) {
-        return null;
+    if (!promotionSelectReady) {
+        return pendingPromotionSelection ?? null;
     }
-    return select.value ? Number(select.value) : null;
+    return selectedPromotionId;
 }
 
 function setPromotionSelection(promotionId) {
-    const select = document.getElementById("promotionSelect");
-    if (!select) return;
     if (!promotionSelectReady) {
         pendingPromotionSelection = promotionId ?? null;
         return;
     }
-    select.value = promotionId ? String(promotionId) : "";
+    selectedPromotionId = promotionId ?? null;
+    const searchInput = document.getElementById("promotionSearchInput");
+    if (searchInput) {
+        if (promotionId) {
+            const promo = promotionOptionsMap.get(String(promotionId));
+            if (promo) {
+                searchInput.value = promo.title || `Khuyến mãi #${promo.id}`;
+            } else {
+                searchInput.value = "";
+            }
+        } else {
+            searchInput.value = "";
+        }
+    }
     updatePromotionPreview(promotionId);
     updatePromotionClearButtonState();
 }
@@ -327,9 +495,11 @@ function updatePromotionPreview(promotionId) {
     const preview = document.getElementById("promotionPreview");
     if (!preview) return;
     if (!promotionId) {
-        preview.innerHTML = `<p class="text-muted mb-0">Chưa chọn khuyến mãi.</p>`;
+        preview.classList.add("movie-preview--hidden");
+        preview.innerHTML = "";
         return;
     }
+    preview.classList.remove("movie-preview--hidden");
     const promotion = promotionOptionsMap.get(String(promotionId));
     if (!promotion) {
         preview.innerHTML = `<p class="text-warning mb-0">Không tìm thấy khuyến mãi #${promotionId}.</p>`;
@@ -338,7 +508,6 @@ function updatePromotionPreview(promotionId) {
     preview.innerHTML = `
         <div class="promo-preview-info">
             <h6>${promotion.title ?? "-"}</h6>
-            <span>Slug: ${promotion.slug ?? "-"}</span>
         </div>
     `;
 }
@@ -359,9 +528,11 @@ function toggleLinkInputs() {
 
     if (!showMovie) {
         setMovieSelection(null);
+        hideMovieSuggestions();
     }
     if (!showPromo) {
         setPromotionSelection(null);
+        hidePromotionSuggestions();
     }
 
     if (targetField) {
@@ -426,24 +597,68 @@ function renderBannerTable(banners) {
 
     counter.textContent = `${banners.length} item(s)`;
     tbody.innerHTML = "";
-    banners.forEach((banner, index) => {
+    const sortedBanners = banners.slice().sort((a, b) =>
+        bannerTextCompare.compare(resolveBannerDisplayName(a) || "", resolveBannerDisplayName(b) || "")
+    );
+    sortedBanners.forEach((banner, index) => {
         const displayText = resolveBannerDisplayName(banner);
-        const safeDisplay = JSON.stringify(displayText || "");
+        const titleHtml = buildBannerTitleHtml(banner, displayText);
+        const encodedName = encodeURIComponent(displayText || "");
+        const toggleLabel = banner.isActive ? "Vô hiệu hóa" : "Kích hoạt";
         const tr = document.createElement("tr");
         tr.innerHTML = `
             <td>${index + 1}</td>
-            <td><div class="fw-semibold">${displayText}</div></td>
+            <td>${titleHtml}</td>
             <td>${banner.linkType || "-"}</td>
             <td>${banner.sortOrder ?? "-"}</td>
             <td>${banner.isActive ? '<span class="badge bg-success">ON</span>' : '<span class="badge bg-secondary">OFF</span>'}</td>
             <td>${formatDateRange(banner.startDate, banner.endDate)}</td>
             <td>
-                <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-outline-light btn-sm" onclick='editBanner(${banner.id})'>Sửa</button>
-                    <button type="button" class="btn btn-outline-danger btn-sm" onclick='deleteBanner(${banner.id}, ${safeDisplay})'>Xóa</button>
+                <div class="user-action-menu-wrapper">
+                    <button type="button"
+                            class="btn btn-outline-light btn-sm action-menu-toggle"
+                            aria-haspopup="true"
+                            aria-expanded="false"
+                            title="Mở hành động">⋮</button>
+                    <div class="user-action-menu" role="menu">
+                        <button type="button" data-banner-edit="${banner.id}" data-menu-role="edit">Sửa</button>
+                        <button type="button"
+                                data-banner-toggle="${banner.id}"
+                                data-banner-target-active="${banner.isActive ? "false" : "true"}"
+                                data-banner-name="${encodedName}"
+                                data-menu-role="toggle">${toggleLabel}</button>
+                        <button type="button"
+                                data-banner-delete="${banner.id}"
+                                data-banner-name="${encodedName}"
+                                data-menu-role="delete">Xóa</button>
+                    </div>
                 </div>
             </td>`;
         tbody.appendChild(tr);
+    });
+    window.AdminActionMenus?.init(tbody);
+    tbody.querySelectorAll("[data-banner-edit]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            window.AdminActionMenus?.closeAll();
+            editBanner(Number(btn.dataset.bannerEdit));
+        });
+    });
+    tbody.querySelectorAll("[data-banner-toggle]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const id = Number(btn.dataset.bannerToggle);
+            const shouldActivate = btn.dataset.bannerTargetActive === "true";
+            const title = decodeURIComponent(btn.dataset.bannerName || "");
+            window.AdminActionMenus?.closeAll();
+            confirmToggleBanner(id, shouldActivate, title);
+        });
+    });
+    tbody.querySelectorAll("[data-banner-delete]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const id = Number(btn.dataset.bannerDelete);
+            const title = decodeURIComponent(btn.dataset.bannerName || "");
+            window.AdminActionMenus?.closeAll();
+            deleteBanner(id, title);
+        });
     });
 }
 
@@ -600,6 +815,37 @@ function resetFormState() {
     updatePromotionClearButtonState();
 }
 
+function confirmToggleBanner(id, shouldActivate, title) {
+    const bannerName = title || "banner này";
+    const actionLabel = shouldActivate ? "kích hoạt" : "vô hiệu hóa";
+    const confirmAction = () => toggleBannerActive(id, shouldActivate);
+    if (typeof openAdminConfirmDialog === "function") {
+        openAdminConfirmDialog({
+            title: `${shouldActivate ? "Kích hoạt" : "Vô hiệu hóa"} banner`,
+            message: `Bạn có chắc muốn ${actionLabel} ${bannerName}?`,
+            confirmLabel: "Xác nhận",
+            confirmVariant: shouldActivate ? "primary" : "danger",
+            cancelLabel: "Hủy",
+            onConfirm: confirmAction
+        });
+    } else if (confirm(`Bạn có chắc muốn ${actionLabel} ${bannerName}?`)) {
+        confirmAction();
+    }
+}
+
+async function toggleBannerActive(id, shouldActivate) {
+    try {
+        const response = await fetch(adminBannersApi.toggleActive(id, shouldActivate), { method: "PATCH" });
+        if (!response.ok) {
+            throw new Error("Không thể cập nhật trạng thái banner");
+        }
+        fetchBanners();
+        bannerDataBus.dispatch("banners");
+    } catch (error) {
+        alert(error.message);
+    }
+}
+
 function deleteBanner(id, title) {
     const displayName = title || "banner này";
     if (typeof openAdminConfirmDialog === "function") {
@@ -690,9 +936,9 @@ function validateBannerForm(payload) {
     if (!payload.linkType) {
         registerError("linkType", "linkTypeError", "Vui lòng chọn Loại liên kết *");
     } else if (payload.linkType === "MOVIE" && !payload.movieId) {
-        registerError("movieSelect", "movieSelectError", "Vui lòng chọn phim *");
+        registerError("movieSearchInput", "movieSelectError", "Vui lòng chọn phim *");
     } else if (payload.linkType === "PROMO" && !payload.promotionId) {
-        registerError("promotionSelect", "promotionSelectError", "Vui lòng chọn khuyến mãi *");
+        registerError("promotionSearchInput", "promotionSelectError", "Vui lòng chọn khuyến mãi *");
     } else if (payload.linkType === "URL" && !payload.targetUrl) {
         registerError("targetUrl", "targetUrlError", "Vui lòng nhập Target URL *");
     }
@@ -707,7 +953,7 @@ function validateBannerForm(payload) {
 }
 
 function clearBannerErrors() {
-    ["imagePath", "linkType", "movieSelect", "promotionSelect", "targetUrl", "sortOrder"].forEach((id) => {
+    ["imagePath", "linkType", "movieSearchInput", "promotionSearchInput", "targetUrl", "sortOrder"].forEach((id) => {
         document.getElementById(id)?.classList.remove("is-invalid");
     });
     ["imagePathError", "linkTypeError", "movieSelectError", "promotionSelectError", "targetUrlError", "sortOrderError"].forEach((id) => {
@@ -743,6 +989,43 @@ function attachNumericOnlyHandlers(context = document) {
             }
         });
     });
+}
+
+function initNumericStepperControls(context = document) {
+    context.querySelectorAll(".numeric-stepper").forEach((wrapper) => {
+        if (wrapper.dataset.stepperInit === "true") {
+            return;
+        }
+        const input = wrapper.querySelector("input[type='number']");
+        if (!input) {
+            return;
+        }
+        wrapper.dataset.stepperInit = "true";
+        wrapper.querySelectorAll(".numeric-stepper-btn").forEach((button) => {
+            const direction = Number(button.dataset.step || 1);
+            button.addEventListener("click", () => adjustNumericInputValue(input, direction));
+        });
+    });
+}
+
+function adjustNumericInputValue(input, direction) {
+    const inputStep = Number(input.step) || 1;
+    const min = input.min !== "" ? Number(input.min) : null;
+    const max = input.max !== "" ? Number(input.max) : null;
+    let currentValue = Number(input.value);
+    if (Number.isNaN(currentValue)) {
+        currentValue = min !== null ? min : 0;
+    }
+    let nextValue = currentValue + direction * inputStep;
+    if (min !== null) {
+        nextValue = Math.max(nextValue, min);
+    }
+    if (max !== null) {
+        nextValue = Math.min(nextValue, max);
+    }
+    input.value = String(nextValue);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
 function bindBannerFilters() {

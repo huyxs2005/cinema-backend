@@ -15,6 +15,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -50,9 +51,15 @@ public class ShowtimeAdminController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deactivate(@PathVariable int id) {
-        showtimeService.deactivate(id);
+    public ResponseEntity<Void> delete(@PathVariable int id) {
+        showtimeService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/active")
+    public ResponseEntity<ShowtimeResponse> updateActive(@PathVariable int id,
+                                                         @RequestParam boolean active) {
+        return ResponseEntity.ok(showtimeService.updateActiveStatus(id, active));
     }
 
     @GetMapping

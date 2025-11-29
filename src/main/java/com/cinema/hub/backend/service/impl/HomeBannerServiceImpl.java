@@ -3,6 +3,7 @@ package com.cinema.hub.backend.service.impl;
 import com.cinema.hub.backend.dto.HomeBannerAdminRequestDto;
 import com.cinema.hub.backend.dto.HomeBannerResponseDto;
 import com.cinema.hub.backend.entity.HomeBanner;
+import com.cinema.hub.backend.entity.Movie;
 import com.cinema.hub.backend.entity.Promotion;
 import com.cinema.hub.backend.repository.HomeBannerRepository;
 import com.cinema.hub.backend.repository.MovieRepository;
@@ -82,6 +83,14 @@ public class HomeBannerServiceImpl implements HomeBannerService {
         refreshBannerStatuses();
     }
 
+    @Override
+    public HomeBannerResponseDto updateBannerActiveStatus(int id, boolean active) {
+        HomeBanner banner = findBannerOrThrow(id);
+        banner.setIsActive(active);
+        HomeBanner saved = homeBannerRepository.save(banner);
+        return mapToResponseDto(saved);
+    }
+
     private boolean isWithinActiveWindow(HomeBanner banner, LocalDate today) {
         boolean startsBeforeToday = banner.getStartDate() == null || !banner.getStartDate().isAfter(today);
         boolean endsAfterToday = banner.getEndDate() == null || !banner.getEndDate().isBefore(today);
@@ -90,12 +99,14 @@ public class HomeBannerServiceImpl implements HomeBannerService {
 
     private HomeBannerResponseDto mapToResponseDto(HomeBanner banner) {
         Promotion promotion = fetchPromotion(banner.getPromotionId());
+        Movie movie = fetchMovie(banner.getMovieId());
         return HomeBannerResponseDto.builder()
                 .id(banner.getId())
                 .imagePath(banner.getImagePath())
                 .linkType(banner.getLinkType())
                 .movieId(banner.getMovieId())
-                .movieTitle(resolveMovieTitle(banner.getMovieId()))
+                .movieTitle(movie != null ? movie.getTitle() : null)
+                .movieOriginalTitle(movie != null ? movie.getOriginalTitle() : null)
                 .promotionId(banner.getPromotionId())
                 .promotionSlug(promotion != null ? promotion.getSlug() : null)
                 .promotionTitle(promotion != null ? promotion.getTitle() : null)
@@ -141,13 +152,11 @@ public class HomeBannerServiceImpl implements HomeBannerService {
         return dto.getPromotionId();
     }
 
-    private String resolveMovieTitle(Integer movieId) {
+    private Movie fetchMovie(Integer movieId) {
         if (movieId == null) {
             return null;
         }
-        return movieRepository.findById(movieId)
-                .map(movie -> movie.getTitle())
-                .orElse(null);
+        return movieRepository.findById(movieId).orElse(null);
     }
 
     private Promotion fetchPromotion(Long promotionId) {
@@ -177,6 +186,7 @@ public class HomeBannerServiceImpl implements HomeBannerService {
             return true;
         }
         return containsIgnoreCase(banner.getMovieTitle(), normalizedKeyword)
+                || containsIgnoreCase(banner.getMovieOriginalTitle(), normalizedKeyword)
                 || containsIgnoreCase(banner.getPromotionTitle(), normalizedKeyword)
                 || containsIgnoreCase(banner.getPromotionSlug(), normalizedKeyword)
                 || containsIgnoreCase(banner.getTargetUrl(), normalizedKeyword)

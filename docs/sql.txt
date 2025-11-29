@@ -387,67 +387,7 @@ BEGIN
 END;
 GO
 
---Banners table
-USE CinemaBooking_Backlog;
-GO
-/* =========================================
-   Home page banners (for promos & hot movies)
-   ========================================= */
-CREATE TABLE HomeBanners (
-  BannerId    INT IDENTITY(1,1) PRIMARY KEY,
-  ImagePath   NVARCHAR(500) NOT NULL,         -- e.g. /uploads/banners/tafiti-2025.jpg
-  LinkType    NVARCHAR(20) NOT NULL,          -- 'MOVIE', 'URL', 'PROMO'
-  MovieId     INT NULL,                       -- when LinkType = 'MOVIE'
-  PromotionId INT NULL,                       -- when LinkType = 'PROMO'
-  TargetUrl   NVARCHAR(500) NULL,             -- when LinkType = 'URL' (e.g. /promo/1)
-  SortOrder   INT NOT NULL DEFAULT 1,
-  IsActive    BIT NOT NULL DEFAULT 1,
-  StartDate   DATE NULL,
-  EndDate     DATE NULL,
-  CONSTRAINT CK_HomeBanners_LinkType CHECK (LinkType IN (N'MOVIE', N'URL', N'PROMO')),
-  CONSTRAINT CK_HomeBanners_SortOrder CHECK (SortOrder BETWEEN 1 AND 100),
-  CONSTRAINT FK_HomeBanners_Movies FOREIGN KEY(MovieId) REFERENCES Movies(MovieId),
-  CONSTRAINT FK_HomeBanners_Promotions FOREIGN KEY(PromotionId) REFERENCES Promotions(PromotionId)
-);
 
-CREATE INDEX IX_HomeBanners_Active ON HomeBanners(IsActive, SortOrder, StartDate, EndDate);
-
-
-
-
-/*-------alter------*/
-USE CinemaBooking_Backlog;
-GO
--- add YT EmbedUrl
-ALTER TABLE Movies
-ADD TrailerEmbedUrl NVARCHAR(500) NULL;
-
-/*-------add enddate to movies------*/
-USE CinemaBooking_Backlog;
-GO
-
-ALTER TABLE Movies
-ADD EndDate DATE NULL;
-GO
-
-/* Drop ShowFormats table and references */
-USE CinemaBooking_Backlog;
-GO
-ALTER TABLE dbo.Showtimes
-DROP CONSTRAINT IF EXISTS FK_Showtimes_Formats;
-GO
-IF OBJECT_ID('dbo.ShowFormats','U') IS NOT NULL
-    DROP TABLE dbo.ShowFormats;
-GO
-ALTER TABLE dbo.Showtimes
-DROP COLUMN IF EXISTS ShowFormatId;
-GO
-
-/* add chairs crud to auditoriums */
-ALTER TABLE dbo.Auditoriums
-ADD NumberOfRows   INT    NOT NULL DEFAULT 0,
-    NumberOfColumns INT   NOT NULL DEFAULT 0;
-GO
 
 /* Promotions + banner link updates . Drop the old Promotion table and recreate it with this table */
 USE CinemaBooking_Backlog;
@@ -494,9 +434,35 @@ IF COL_LENGTH('dbo.Promotions','ImgContentUrl') IS NULL
     ALTER TABLE dbo.Promotions ADD ImgContentUrl NVARCHAR(500) NULL;
 GO
 
-IF COL_LENGTH('dbo.HomeBanners','PromotionId') IS NULL
-    ALTER TABLE dbo.HomeBanners ADD PromotionId INT NULL;
+
+
+--Banners table
+USE CinemaBooking_Backlog;
 GO
+/* =========================================
+   Home page banners (for promos & hot movies)
+   ========================================= */
+CREATE TABLE HomeBanners (
+  BannerId    INT IDENTITY(1,1) PRIMARY KEY,
+  ImagePath   NVARCHAR(500) NOT NULL,         -- e.g. /uploads/banners/tafiti-2025.jpg
+  LinkType    NVARCHAR(20) NOT NULL,          -- 'MOVIE', 'URL', 'PROMO'
+  MovieId     INT NULL,                       -- when LinkType = 'MOVIE'
+  PromotionId INT NULL,                       -- when LinkType = 'PROMO'
+  TargetUrl   NVARCHAR(500) NULL,             -- when LinkType = 'URL' (e.g. /promo/1)
+  SortOrder   INT NOT NULL DEFAULT 1,
+  IsActive    BIT NOT NULL DEFAULT 1,
+  StartDate   DATE NULL,
+  EndDate     DATE NULL,
+  CONSTRAINT CK_HomeBanners_LinkType CHECK (LinkType IN (N'MOVIE', N'URL', N'PROMO')),
+  CONSTRAINT CK_HomeBanners_SortOrder CHECK (SortOrder BETWEEN 1 AND 100),
+  CONSTRAINT FK_HomeBanners_Movies FOREIGN KEY(MovieId) REFERENCES Movies(MovieId),
+  CONSTRAINT FK_HomeBanners_Promotions FOREIGN KEY(PromotionId) REFERENCES Promotions(PromotionId)
+);
+
+CREATE INDEX IX_HomeBanners_Active ON HomeBanners(IsActive, SortOrder, StartDate, EndDate);
+
+
+/*-----------homebanner and promoto alters----------*/
 
 ALTER TABLE dbo.HomeBanners DROP CONSTRAINT IF EXISTS CK_HomeBanners_LinkType;
 GO
@@ -509,6 +475,49 @@ GO
 ALTER TABLE dbo.HomeBanners
 ADD CONSTRAINT FK_HomeBanners_Promotions FOREIGN KEY(PromotionId) REFERENCES dbo.Promotions(PromotionId);
 GO
+
+IF COL_LENGTH('dbo.HomeBanners','PromotionId') IS NULL
+    ALTER TABLE dbo.HomeBanners ADD PromotionId INT NULL;
+GO
+
+
+
+/*-------alter------*/
+USE CinemaBooking_Backlog;
+GO
+-- add YT EmbedUrl
+ALTER TABLE Movies
+ADD TrailerEmbedUrl NVARCHAR(500) NULL;
+
+/*-------add enddate to movies------*/
+USE CinemaBooking_Backlog;
+GO
+
+ALTER TABLE Movies
+ADD EndDate DATE NULL;
+GO
+
+/* Drop ShowFormats table and references */
+USE CinemaBooking_Backlog;
+GO
+ALTER TABLE dbo.Showtimes
+DROP CONSTRAINT IF EXISTS FK_Showtimes_Formats;
+GO
+IF OBJECT_ID('dbo.ShowFormats','U') IS NOT NULL
+    DROP TABLE dbo.ShowFormats;
+GO
+ALTER TABLE dbo.Showtimes
+DROP COLUMN IF EXISTS ShowFormatId;
+GO
+
+/* add chairs crud to auditoriums */
+ALTER TABLE dbo.Auditoriums
+ADD NumberOfRows   INT    NOT NULL DEFAULT 0,
+    NumberOfColumns INT   NOT NULL DEFAULT 0;
+GO
+
+
+
 
 /*-------update login logic-------*/
 
@@ -543,7 +552,50 @@ BEGIN
 END
 GO
 
+USE CinemaBooking_Backlog;
+GO
 
+/* =========================================
+   1) BookingHistory (SAFE)
+   ========================================= */
+IF OBJECT_ID('dbo.BookingHistory','U') IS NULL
+BEGIN
+    CREATE TABLE BookingHistory (
+        Id         INT IDENTITY(1,1) PRIMARY KEY,
+        BookingId  INT NOT NULL,
+        Action     NVARCHAR(50) NOT NULL,
+        CreatedAt  DATETIME2    NOT NULL DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_BookingHistory_Bookings FOREIGN KEY(BookingId) REFERENCES Bookings(BookingId)
+    );
+
+    CREATE INDEX IX_BookingHistory_BookingId ON BookingHistory(BookingId);
+END
+GO
+
+
+/* =========================================
+   2) PaymentLogs extra columns (SAFE)
+   ========================================= */
+IF COL_LENGTH('dbo.PaymentLogs', 'OrderCode') IS NULL
+BEGIN
+    ALTER TABLE dbo.PaymentLogs
+        ADD OrderCode BIGINT NULL;
+END
+GO
+
+IF COL_LENGTH('dbo.PaymentLogs', 'TransactionStatus') IS NULL
+BEGIN
+    ALTER TABLE dbo.PaymentLogs
+        ADD TransactionStatus NVARCHAR(50) NULL;
+END
+GO
+
+/* =========================================
+   NOTE:
+   SeatFormatSeat + ShowFormats are intentionally
+   omitted because ShowFormats has been dropped
+   in the main schema and must NOT be reintroduced.
+   ========================================= */
 
 
 

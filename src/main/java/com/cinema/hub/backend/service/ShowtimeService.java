@@ -15,7 +15,9 @@ public interface ShowtimeService {
 
     ShowtimeResponse get(int id);
 
-    void deactivate(int id);
+    void delete(int id);
+
+    ShowtimeResponse updateActiveStatus(int id, boolean active);
 
     PageResponse<ShowtimeResponse> search(Integer movieId,
                                           Integer auditoriumId,

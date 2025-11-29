@@ -35,6 +35,8 @@ const GENRE_OPTIONS = [
     { value: "Tội phạm", label: "Tội phạm" }
 ].sort((a, b) => a.label.localeCompare(b.label, "vi"));
 
+const movieTextCompare = new Intl.Collator("vi", { sensitivity: "base" });
+
 let isSubmittingMovie = false;
 var createDebounce = window.__ADMIN_DEBOUNCE_FACTORY__;
 if (typeof createDebounce !== "function") {
@@ -145,15 +147,22 @@ function renderMovieTable(movies) {
     counter.textContent = `${movies.length} items`;
     tbody.innerHTML = "";
 
-    movies.forEach((movie, index) => {
+    const sortedMovies = movies.slice().sort((a, b) =>
+        movieTextCompare.compare(a?.title || "", b?.title || "")
+    );
+    sortedMovies.forEach((movie, index) => {
         const tr = document.createElement("tr");
         const safeTitle = JSON.stringify(movie.title || "");
         const releaseDate = formatDateDisplay(movie.releaseDate);
         const endDate = formatDateDisplay(movie.endDate);
+        const originalTitle = movie.originalTitle && movie.originalTitle.trim()
+            ? `<div class="movie-table-secondary">${movie.originalTitle}</div>`
+            : "";
         tr.innerHTML = `
             <td>${index + 1}</td>
             <td>
-                <strong>${movie.title}</strong>
+                <div class="movie-table-primary">${movie.title || "-"}</div>
+                ${originalTitle}
                 <div class="small">
                     <span class="badge ${statusBadgeClass(movie.status)}">${statusLabel(movie.status)}</span>
                 </div>
@@ -164,12 +173,35 @@ function renderMovieTable(movies) {
             <td>${endDate}</td>
             <td>${(movie.genres || []).join(", ") || "-"}</td>
             <td>
-                <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-outline-light btn-sm" onclick='editMovie(${movie.id})'>Sửa</button>
-                    <button type="button" class="btn btn-outline-danger btn-sm" onclick='deleteMovie(${movie.id}, ${safeTitle})'>Xóa</button>
+                <div class="user-action-menu-wrapper">
+                    <button type="button"
+                            class="btn btn-outline-light btn-sm action-menu-toggle"
+                            aria-haspopup="true"
+                            aria-expanded="false"
+                            title="Mở hành động">⋮</button>
+                    <div class="user-action-menu" role="menu">
+                        <button type="button" data-movie-edit="${movie.id}" data-menu-role="edit">Sửa</button>
+                        <button type="button"
+                                data-movie-delete="${movie.id}"
+                                data-menu-role="delete">Xóa</button>
+                    </div>
                 </div>
             </td>`;
         tbody.appendChild(tr);
+    });
+    window.AdminActionMenus?.init(tbody);
+    tbody.querySelectorAll("[data-movie-edit]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            window.AdminActionMenus?.closeAll();
+            editMovie(Number(btn.dataset.movieEdit));
+        });
+    });
+    tbody.querySelectorAll("[data-movie-delete]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const id = Number(btn.dataset.movieDelete);
+            window.AdminActionMenus?.closeAll();
+            deleteMovie(id);
+        });
     });
 }
 
@@ -408,7 +440,16 @@ function deleteMovie(id, title) {
 async function performDeleteMovie(id) {
     try {
         const response = await fetch(movieAdminApi.delete(id), { method: "DELETE" });
-        if (!response.ok) throw new Error("Không thể xóa phim");
+        if (!response.ok) {
+            let fallback = "Không thể xóa phim";
+            if (response.status === 409) {
+                fallback = "CONFLICT";
+            } else {
+                const error = await response.json().catch(() => ({}));
+                fallback = error.message || fallback;
+            }
+            throw new Error(fallback);
+        }
         fetchMovies();
         const currentId = document.getElementById("movieId").value;
         if (String(currentId) === String(id)) {
@@ -416,7 +457,19 @@ async function performDeleteMovie(id) {
         }
         movieDataBus.dispatch("movies");
     } catch (error) {
-        alert(error.message);
+        const conflictDetected =
+            error.message === "CONFLICT"
+            || (error.message && error.message.includes("FK_Showtimes"))
+            || (error.message && error.message.includes("suất chiếu"));
+        if (conflictDetected) {
+            openAdminNotice?.({
+                title: "Không thể xóa",
+                message: "Phim này vẫn đang có suất chiếu. Hãy xóa hoặc chuyển tất cả suất chiếu liên quan trước khi xóa phim.",
+                variant: "warning"
+            });
+        } else {
+            alert(error.message);
+        }
     }
 }
 

@@ -1,4 +1,4 @@
-﻿const MOVIE_API = {
+const MOVIE_API = {
     nowShowing: "/api/movies/now-showing",
     comingSoon: "/api/movies/coming-soon"
 };

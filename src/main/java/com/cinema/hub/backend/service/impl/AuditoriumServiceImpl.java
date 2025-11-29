@@ -61,6 +61,13 @@ public class AuditoriumServiceImpl implements AuditoriumService {
     }
 
     @Override
+    public AuditoriumResponse updateActive(int id, boolean active) {
+        Auditorium auditorium = getEntity(id);
+        auditorium.setActive(active);
+        return auditoriumMapper.toResponse(auditoriumRepository.save(auditorium));
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public PageResponse<AuditoriumResponse> search(String name, Boolean active, Pageable pageable) {
         Page<Auditorium> page = auditoriumRepository.findAll(

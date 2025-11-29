@@ -15,5 +15,7 @@ public interface AuditoriumService {
 
     void delete(int id);
 
+    AuditoriumResponse updateActive(int id, boolean active);
+
     PageResponse<AuditoriumResponse> search(String name, Boolean active, Pageable pageable);
 }

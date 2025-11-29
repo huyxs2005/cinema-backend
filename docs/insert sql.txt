@@ -213,3 +213,34 @@ WHERE NOT EXISTS (
     SELECT 1 FROM Auditoriums a WHERE a.Name = v.Name
 );
 GO
+
+
+DECLARE @AuditoriumId INT = 1;      -- phòng chiếu cần tạo ghế
+DECLARE @SeatTypeStandard INT = (SELECT SeatTypeId FROM SeatTypes WHERE Name = N'Standard');
+DECLARE @SeatTypeVip INT = (SELECT SeatTypeId FROM SeatTypes WHERE Name = N'VIP');
+
+DECLARE @Row INT = 1;
+DECLARE @TotalRows INT = 10;        -- số hàng
+DECLARE @TotalCols INT = 12;        -- số ghế mỗi hàng
+
+WHILE @Row <= @TotalRows
+BEGIN
+    DECLARE @RowLabel NVARCHAR(5) = CHAR(64 + @Row); -- A,B,C...
+    DECLARE @Col INT = 1;
+
+    WHILE @Col <= @TotalCols
+    BEGIN
+        INSERT INTO Seats (AuditoriumId, RowLabel, SeatNumber, SeatTypeId, IsActive)
+        VALUES (
+            @AuditoriumId,
+            @RowLabel,
+            @Col,
+            CASE WHEN @Row <= 2 THEN @SeatTypeVip ELSE @SeatTypeStandard END,
+            1
+        );
+
+        SET @Col += 1;
+    END
+
+    SET @Row += 1;
+END;

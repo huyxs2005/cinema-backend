@@ -18,4 +18,6 @@ public interface HomeBannerService {
     HomeBannerResponseDto updateBanner(int id, HomeBannerAdminRequestDto dto);
 
     void deleteBanner(int id);
+
+    HomeBannerResponseDto updateBannerActiveStatus(int id, boolean active);
 }

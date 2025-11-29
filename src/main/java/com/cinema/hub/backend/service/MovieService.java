@@ -57,6 +57,7 @@ public class MovieService {
                 .map(pair -> MovieOptionDto.builder()
                         .id(pair.movie().getId())
                         .title(pair.movie().getTitle())
+                        .originalTitle(pair.movie().getOriginalTitle())
                         .status(pair.status().get())
                         .posterUrl(pair.movie().getPosterUrl())
                         .build())

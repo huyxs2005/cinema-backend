@@ -15,6 +15,7 @@ public class MovieOptionDto {
 
     private int id;
     private String title;
+    private String originalTitle;
     private String status;
     private String posterUrl;
 }

@@ -39,6 +39,11 @@ Cinema HUB là hệ thống quản lý rạp chiếu phim (Spring Boot + Thymele
 - Auth gồm đăng ký, đăng nhập, quên mật khẩu; số điện thoại bắt buộc unique, tối đa 11 ký tự và kiểm tra numeric.
 - Các toast / confirm dialog dùng `admin-confirm.js`, `showSuccessToast` (định nghĩa ở `admin-movies.js`).
 
+### 2.7 Cải tiến UI admin gần đây
+- Bổ sung script `admin-action-menu.js` để mọi danh sách CRUD dùng chung menu ba chấm (Sửa / Kích hoạt hoặc Vô hiệu hóa / Xóa), giúp thao tác gọn gàng và đồng bộ.
+- Các bảng (phim, suất chiếu, phòng chiếu, banner, khuyến mãi, tài khoản) đều được sắp chữ cái theo tên bằng `Intl.Collator("vi")`, dễ tra cứu hơn.
+- Khi xóa phim hoặc phòng chiếu đang còn suất chiếu, hệ thống hiển thị pop-up tiếng Việt giải thích cần xóa/chuyển suất chiếu trước (thay vì lỗi FK khó hiểu).
+
 ## 3. Workflow tổng quan
 1. **Khởi động**: `mvn spring-boot:run`. Database SQL Server (schema script `docs/sql.txt`, seed `docs/insert sql.txt`). Nhớ ALTER `Auditoriums` thêm `NumberOfRows/Columns`.
 2. **Frontend**: truy cập `/` để xem trang khách. `/admin/dashboard` cho admin.

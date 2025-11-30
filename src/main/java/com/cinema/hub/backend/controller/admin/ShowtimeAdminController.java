@@ -1,6 +1,7 @@
 package com.cinema.hub.backend.controller.admin;
 
 import com.cinema.hub.backend.dto.common.PageResponse;
+import com.cinema.hub.backend.dto.showtime.ShowtimeGroupedResponse;
 import com.cinema.hub.backend.dto.showtime.ShowtimeRequest;
 import com.cinema.hub.backend.dto.showtime.ShowtimeResponse;
 import com.cinema.hub.backend.service.ShowtimeService;
@@ -79,5 +80,20 @@ public class ShowtimeAdminController {
         Pageable pageable = PaginationUtil.create(page, size, sort);
         return ResponseEntity.ok(
                 showtimeService.search(movieId, auditoriumId, active, fromDate, toDate, keyword, pageable));
+    }
+
+    @GetMapping("/grouped")
+    public ResponseEntity<List<ShowtimeGroupedResponse>> grouped(@RequestParam(required = false) Integer movieId,
+                                                                 @RequestParam(required = false) Integer auditoriumId,
+                                                                 @RequestParam(required = false) Boolean active,
+                                                                 @RequestParam(required = false)
+                                                                 @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+                                                                 LocalDate fromDate,
+                                                                 @RequestParam(required = false)
+                                                                 @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+                                                                 LocalDate toDate,
+                                                                 @RequestParam(required = false) String keyword) {
+        return ResponseEntity.ok(
+                showtimeService.groupByMovie(movieId, auditoriumId, active, fromDate, toDate, keyword));
     }
 }

@@ -1,6 +1,9 @@
 package com.cinema.hub.backend.service.impl;
 
 import com.cinema.hub.backend.dto.common.PageResponse;
+import com.cinema.hub.backend.dto.showtime.ShowtimeDayGroupResponse;
+import com.cinema.hub.backend.dto.showtime.ShowtimeGroupedResponse;
+import com.cinema.hub.backend.dto.showtime.ShowtimeOccurrenceResponse;
 import com.cinema.hub.backend.dto.showtime.ShowtimeRequest;
 import com.cinema.hub.backend.dto.showtime.ShowtimeResponse;
 import com.cinema.hub.backend.entity.Auditorium;
@@ -12,6 +15,7 @@ import com.cinema.hub.backend.mapper.ShowtimeMapper;
 import com.cinema.hub.backend.repository.AuditoriumRepository;
 import com.cinema.hub.backend.repository.MovieRepository;
 import com.cinema.hub.backend.repository.SeatRepository;
+import com.cinema.hub.backend.repository.SeatHoldRepository;
 import com.cinema.hub.backend.repository.ShowtimeRepository;
 import com.cinema.hub.backend.repository.ShowtimeSeatRepository;
 import com.cinema.hub.backend.service.ShowtimeService;
@@ -22,12 +26,18 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.TreeMap;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,12 +58,15 @@ public class ShowtimeServiceImpl implements ShowtimeService {
     private static final BigDecimal WEEKEND_AFTERNOON_PRICE = new BigDecimal("75000");
     private static final BigDecimal WEEKEND_EVENING_PRICE = new BigDecimal("90000");
     private static final BigDecimal WEEKEND_LATE_PRICE = new BigDecimal("80000");
+    private static final DateTimeFormatter TIME_LABEL_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
+    private static final DateTimeFormatter DATE_LABEL_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     private final ShowtimeRepository showtimeRepository;
     private final MovieRepository movieRepository;
     private final AuditoriumRepository auditoriumRepository;
     private final SeatRepository seatRepository;
     private final ShowtimeSeatRepository showtimeSeatRepository;
+    private final SeatHoldRepository seatHoldRepository;
     private final ShowtimeMapper showtimeMapper;
 
     @Override
@@ -106,6 +119,7 @@ public class ShowtimeServiceImpl implements ShowtimeService {
     @Override
     public void delete(int id) {
         Showtime showtime = getEntity(id);
+        seatHoldRepository.deleteByShowtimeId(showtime.getId());
         showtimeSeatRepository.deleteByShowtime_Id(showtime.getId());
         showtimeRepository.delete(showtime);
     }
@@ -161,6 +175,97 @@ public class ShowtimeServiceImpl implements ShowtimeService {
                 .stream()
                 .map(showtimeMapper::toResponse)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ShowtimeGroupedResponse> groupByMovie(Integer movieId,
+                                                      Integer auditoriumId,
+                                                      Boolean active,
+                                                      LocalDate fromDate,
+                                                      LocalDate toDate,
+                                                      String keyword) {
+        List<Showtime> showtimes = showtimeRepository.findAll(
+                ShowtimeSpecifications.filter(movieId, auditoriumId, active, fromDate, toDate, keyword),
+                Sort.by(Sort.Direction.ASC, "startTime"));
+        if (showtimes.isEmpty()) {
+            return List.of();
+        }
+        Map<LocalTime, Map<DayOfWeek, List<Showtime>>> grouped = new TreeMap<>();
+        for (Showtime showtime : showtimes) {
+            LocalDateTime start = showtime.getStartTime();
+            if (start == null) {
+                continue;
+            }
+            grouped.computeIfAbsent(start.toLocalTime(), time -> new EnumMap<>(DayOfWeek.class))
+                    .computeIfAbsent(start.getDayOfWeek(), day -> new ArrayList<>())
+                    .add(showtime);
+        }
+        List<ShowtimeGroupedResponse> responses = new ArrayList<>();
+        for (Map.Entry<LocalTime, Map<DayOfWeek, List<Showtime>>> entry : grouped.entrySet()) {
+            List<ShowtimeDayGroupResponse> dayGroups = buildDayGroups(entry.getValue());
+            int total = dayGroups.stream()
+                    .mapToInt(ShowtimeDayGroupResponse::totalShowtimes)
+                    .sum();
+            responses.add(new ShowtimeGroupedResponse(
+                    entry.getKey(),
+                    TIME_LABEL_FORMATTER.format(entry.getKey()),
+                    total,
+                    dayGroups));
+        }
+        return responses;
+    }
+
+    private List<ShowtimeDayGroupResponse> buildDayGroups(Map<DayOfWeek, List<Showtime>> dayMap) {
+        List<ShowtimeDayGroupResponse> responses = new ArrayList<>();
+        for (DayOfWeek day : DayOfWeek.values()) {
+            List<Showtime> dayShowtimes = dayMap.get(day);
+            if (dayShowtimes == null || dayShowtimes.isEmpty()) {
+                continue;
+            }
+            dayShowtimes.sort(Comparator.comparing(Showtime::getStartTime,
+                    Comparator.nullsLast(LocalDateTime::compareTo)));
+            List<ShowtimeOccurrenceResponse> occurrences = dayShowtimes.stream()
+                    .map(this::toOccurrenceResponse)
+                    .toList();
+            responses.add(new ShowtimeDayGroupResponse(
+                    day.getValue(),
+                    formatDayLabel(day),
+                    occurrences.size(),
+                    occurrences));
+        }
+        return responses;
+    }
+
+    private ShowtimeOccurrenceResponse toOccurrenceResponse(Showtime showtime) {
+        LocalDateTime start = showtime.getStartTime();
+        LocalDate showDate = start != null ? start.toLocalDate() : null;
+        Auditorium auditorium = showtime.getAuditorium();
+        Movie movie = showtime.getMovie();
+        return new ShowtimeOccurrenceResponse(
+                showtime.getId(),
+                showDate,
+                showDate != null ? DATE_LABEL_FORMATTER.format(showDate) : "",
+                auditorium != null ? auditorium.getId() : null,
+                auditorium != null ? auditorium.getName() : null,
+                showtime.getActive(),
+                start,
+                showtime.getEndTime(),
+                movie != null ? movie.getId() : null,
+                movie != null ? movie.getTitle() : null,
+                movie != null ? movie.getOriginalTitle() : null);
+    }
+
+    private String formatDayLabel(DayOfWeek dayOfWeek) {
+        return switch (dayOfWeek) {
+            case MONDAY -> "Thứ 2";
+            case TUESDAY -> "Thứ 3";
+            case WEDNESDAY -> "Thứ 4";
+            case THURSDAY -> "Thứ 5";
+            case FRIDAY -> "Thứ 6";
+            case SATURDAY -> "Thứ 7";
+            case SUNDAY -> "Chủ nhật";
+        };
     }
 
     private Movie requireMovie(Integer id) {

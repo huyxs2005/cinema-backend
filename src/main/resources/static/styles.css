@@ -1289,7 +1289,7 @@ body {
 }
 
 .showtime-empty-state {
-    color: #cbd5f5;
+    color: #ffffff;
     font-style: italic;
     opacity: 0.9;
 }
@@ -2139,6 +2139,132 @@ body {
     min-width: 110px;
     border-radius: 50px;
     font-weight: 600;
+}
+
+.showtime-grouped-container {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    background-color: rgba(0, 0, 0, 0.25);
+    max-height: 520px;
+    overflow-y: auto;
+}
+
+.showtime-time-group + .showtime-time-group {
+    margin-top: 1rem;
+}
+
+.showtime-time-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.showtime-time-label {
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.showtime-time-count {
+    font-size: 0.85rem;
+    color: #adb5bd;
+}
+
+.showtime-day-group {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.showtime-day-group:last-child {
+    border-bottom: none;
+}
+
+.showtime-day-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.showtime-day-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.showtime-day-groups.collapsed {
+    display: none;
+}
+
+.showtime-occurrence-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.showtime-occurrence-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.showtime-occurrence-meta {
+    display: flex;
+    gap: 0.75rem;
+    font-size: 0.85rem;
+    color: #adb5bd;
+}
+
+.showtime-status-badge {
+    padding: 0.15rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+}
+
+.showtime-status-badge.status-active {
+    background-color: rgba(25, 135, 84, 0.25);
+    color: #63d29a;
+}
+
+.showtime-status-badge.status-inactive {
+    background-color: rgba(108, 117, 125, 0.25);
+    color: #dee2e6;
+}
+
+.showtime-empty-state {
+    text-align: center;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    background-color: rgba(255, 255, 255, 0.03);
+    color: #ffffff;
+}
+
+.showtime-movie-line {
+    font-weight: 600;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    margin-bottom: 0.25rem;
+}
+
+.showtime-movie-primary {
+    color: #f8fafc;
+}
+
+.showtime-movie-secondary {
+    font-size: 0.85rem;
+    color: #f87171;
 }
 
 .ticket-price-page {

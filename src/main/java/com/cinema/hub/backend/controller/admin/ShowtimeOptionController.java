@@ -29,11 +29,32 @@ public class ShowtimeOptionController {
     private AuditoriumOptionDto mapAuditorium(Auditorium auditorium) {
         Integer rows = auditorium.getNumberOfRows();
         Integer cols = auditorium.getNumberOfColumns();
-        Integer totalSeats = (rows != null && cols != null) ? rows * cols : null;
+        Integer totalSeats = calculateDisplaySeats(rows, cols);
         return AuditoriumOptionDto.builder()
                 .id(auditorium.getId())
                 .name(auditorium.getName())
                 .totalSeats(totalSeats)
                 .build();
+    }
+
+    private Integer calculateDisplaySeats(Integer rows, Integer columns) {
+        if (rows == null || columns == null) {
+            return null;
+        }
+        int totalSeats = rows * columns;
+        if (columns % 2 != 0) {
+            totalSeats -= determineCoupleRows(rows);
+        }
+        return Math.max(0, totalSeats);
+    }
+
+    private int determineCoupleRows(int totalRows) {
+        if (totalRows >= 20) {
+            return 2;
+        }
+        if (totalRows >= 10) {
+            return 1;
+        }
+        return 0;
     }
 }

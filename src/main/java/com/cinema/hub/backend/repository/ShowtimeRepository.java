@@ -30,4 +30,6 @@ public interface ShowtimeRepository extends JpaRepository<Showtime, Integer>, Jp
 
     List<Showtime> findByActiveTrueAndStartTimeBetweenOrderByStartTimeAsc(LocalDateTime start,
                                                                           LocalDateTime end);
+
+    boolean existsByAuditorium_Id(Integer auditoriumId);
 }

@@ -380,14 +380,14 @@ async function performDeleteAuditorium(id) {
     try {
         const response = await fetch(auditoriumApi.delete(id), { method: "DELETE" });
         if (!response.ok) {
-            let message = "Không thể xóa phòng chiếu";
-            if (response.status === 409) {
-                message = "CONFLICT";
-            } else {
-                const error = await response.json().catch(() => ({}));
-                message = error.message || message;
+            const error = await response.json().catch(() => ({}));
+            let message = error.message || "Không thể xóa phòng chiếu";
+            if (response.status === 409 && !error.message) {
+                message = "Phòng chiếu này vẫn còn suất chiếu đang sử dụng.";
             }
-            throw new Error(message);
+            const err = new Error(message);
+            err.status = response.status;
+            throw err;
         }
         showSuccessToast("Đã xóa phòng chiếu");
         auditoriumDataBus.dispatch("auditoriums");
@@ -397,13 +397,13 @@ async function performDeleteAuditorium(id) {
         }
     } catch (error) {
         const conflictDetected =
-            error.message === "CONFLICT"
+            error.status === 409
             || (error.message && error.message.includes("FK_Showtimes_Auditoriums"))
-            || (error.message && error.message.includes("suất chiếu"));
+            || (error.message && error.message.toLowerCase().includes("suất chiếu"));
         if (conflictDetected) {
             openAdminNotice?.({
                 title: "Không thể xóa",
-                message: "Phòng chiếu này vẫn còn suất chiếu đang sử dụng. Hãy xóa hoặc chuyển tất cả suất chiếu trước khi xóa phòng.",
+                message: error.message || "Phòng chiếu này vẫn còn suất chiếu đang sử dụng. Hãy xóa hoặc chuyển tất cả suất chiếu trước khi xóa phòng.",
                 variant: "warning"
             });
         } else {
@@ -423,7 +423,23 @@ function calculateTotalSeats(rows, columns) {
     if (Number.isNaN(Number(rows)) || Number.isNaN(Number(columns))) {
         return null;
     }
-    return Number(rows) * Number(columns);
+    const totalRows = Number(rows);
+    const totalCols = Number(columns);
+    let totalSeats = totalRows * totalCols;
+    if (totalCols % 2 !== 0) {
+        totalSeats -= determineCoupleRows(totalRows);
+    }
+    return Math.max(0, totalSeats);
+}
+
+function determineCoupleRows(totalRows) {
+    if (totalRows >= 20) {
+        return 2;
+    }
+    if (totalRows >= 10) {
+        return 1;
+    }
+    return 0;
 }
 
 function numberFromInput(value) {

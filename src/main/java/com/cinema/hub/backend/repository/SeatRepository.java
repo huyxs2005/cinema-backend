@@ -7,4 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface SeatRepository extends JpaRepository<Seat, Integer> {
 
     List<Seat> findByAuditorium_IdAndActiveTrueOrderByRowLabelAscSeatNumberAsc(Integer auditoriumId);
+
+    void deleteByAuditorium_Id(Integer auditoriumId);
 }

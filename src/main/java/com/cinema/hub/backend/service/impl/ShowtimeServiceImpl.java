@@ -129,6 +129,13 @@ public class ShowtimeServiceImpl implements ShowtimeService {
     @Override
     public ShowtimeResponse updateActiveStatus(int id, boolean active) {
         Showtime showtime = getEntity(id);
+        if (active) {
+            Auditorium auditorium = showtime.getAuditorium();
+            if (auditorium != null && !Boolean.TRUE.equals(auditorium.getActive())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Không thể kích hoạt suất chiếu vì phòng chiếu đang bị vô hiệu hóa.");
+            }
+        }
         showtime.setActive(active);
         return showtimeMapper.toResponse(showtimeRepository.save(showtime));
     }

@@ -235,6 +235,9 @@ async function submitAuditoriumForm(event) {
         if (typeof window.refreshShowtimeAuditoriums === "function") {
             window.refreshShowtimeAuditoriums();
         }
+        if (typeof window.refreshShowtimeSchedule === "function") {
+            window.refreshShowtimeSchedule();
+        }
         window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (error) {
         messageBox.textContent = error.message;
@@ -401,6 +404,12 @@ async function toggleAuditoriumActive(id, shouldActivate) {
         }
         fetchAuditoriums(auditoriumState.page);
         auditoriumDataBus.dispatch("auditoriums");
+        if (typeof window.refreshShowtimeAuditoriums === "function") {
+            window.refreshShowtimeAuditoriums();
+        }
+        if (typeof window.refreshShowtimeSchedule === "function") {
+            window.refreshShowtimeSchedule();
+        }
     } catch (error) {
         alert(error.message);
     }
@@ -424,6 +433,9 @@ async function performDeleteAuditorium(id) {
         fetchAuditoriums(auditoriumState.page);
         if (typeof window.refreshShowtimeAuditoriums === "function") {
             window.refreshShowtimeAuditoriums();
+        }
+        if (typeof window.refreshShowtimeSchedule === "function") {
+            window.refreshShowtimeSchedule();
         }
     } catch (error) {
         const conflictDetected =

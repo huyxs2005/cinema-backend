@@ -69,6 +69,20 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 window.refreshShowtimeAuditoriums = () => loadAuditoriumOptions(true);
+window.refreshShowtimeSchedule = () => fetchShowtimes();
+
+function showShowtimeError(message) {
+    const finalMessage = message || "Không thể thực hiện thao tác với suất chiếu.";
+    if (typeof window.openAdminNotice === "function") {
+        openAdminNotice({
+            title: "Lỗi suất chiếu",
+            message: finalMessage,
+            variant: "warning"
+        });
+    } else {
+        alert(finalMessage);
+    }
+}
 
 async function initShowtimeAdmin() {
     initShowtimeMovieSearch();
@@ -647,7 +661,7 @@ async function performBulkToggle(ids, shouldActivate) {
         try {
             await toggleShowtimeActive(id, shouldActivate);
         } catch (error) {
-            alert(error.message);
+            showShowtimeError(error.message);
             break;
         }
     }

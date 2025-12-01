@@ -17,6 +17,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -64,11 +65,15 @@ public class AuditoriumServiceImpl implements AuditoriumService {
     @Override
     public AuditoriumResponse update(int id, AuditoriumRequest request) {
         Auditorium auditorium = getEntity(id);
+        Boolean previousActive = auditorium.getActive();
         applyRequest(auditorium, request);
         SeatLayoutCalculator.SeatRowDistribution distribution = distributionFromRequest(request);
         seatRepository.deleteByAuditorium_Id(auditorium.getId());
         Auditorium saved = auditoriumRepository.save(auditorium);
         createDefaultSeats(saved, distribution);
+        if (!Objects.equals(previousActive, saved.getActive())) {
+            propagateActivation(saved.getId(), Boolean.TRUE.equals(saved.getActive()));
+        }
         return auditoriumMapper.toResponse(saved, distribution);
     }
 
@@ -99,6 +104,7 @@ public class AuditoriumServiceImpl implements AuditoriumService {
     public AuditoriumResponse updateActive(int id, boolean active) {
         Auditorium auditorium = getEntity(id);
         auditorium.setActive(active);
+        propagateActivation(id, active);
         Auditorium saved = auditoriumRepository.save(auditorium);
         return auditoriumMapper.toResponse(saved, summarizeSeatRows(saved));
     }
@@ -154,13 +160,14 @@ public class AuditoriumServiceImpl implements AuditoriumService {
             if (seatsInRow <= 0) {
                 continue;
             }
+            boolean seatActive = Boolean.TRUE.equals(auditorium.getActive());
             for (int colIndex = 1; colIndex <= seatsInRow; colIndex++) {
                 Seat seat = Seat.builder()
                         .auditorium(auditorium)
                         .rowLabel(rowLabel)
                         .seatNumber(colIndex)
                         .seatType(seatTypeForRow)
-                        .active(Boolean.TRUE)
+                        .active(seatActive)
                         .build();
                 seats.add(seat);
             }
@@ -222,5 +229,10 @@ public class AuditoriumServiceImpl implements AuditoriumService {
             }
         }
         return new SeatLayoutCalculator.SeatRowDistribution(standard, vip, couple);
+    }
+
+    private void propagateActivation(int auditoriumId, boolean active) {
+        showtimeRepository.updateActiveByAuditoriumId(auditoriumId, active);
+        seatRepository.updateActiveByAuditoriumId(auditoriumId, active);
     }
 }

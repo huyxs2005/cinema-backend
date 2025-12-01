@@ -11,5 +11,8 @@ public class AuditoriumResponse {
     private final String name;
     private final Integer numberOfRows;
     private final Integer numberOfColumns;
+    private final Integer normalRowCount;
+    private final Integer coupleRowCount;
+    private final Integer vipRowCount;
     private final Boolean active;
 }

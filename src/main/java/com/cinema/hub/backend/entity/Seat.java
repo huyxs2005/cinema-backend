@@ -11,6 +11,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import jakarta.persistence.UniqueConstraint;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -57,4 +58,18 @@ public class Seat {
     @Builder.Default
     @JsonIgnore
     private Set<ShowtimeSeat> showtimeSeats = new LinkedHashSet<>();
+
+    @Transient
+    @JsonIgnore
+    public String getResolvedCoupleGroupId() {
+        if (seatType != null
+                && seatType.getName() != null
+                && "Couple".equalsIgnoreCase(seatType.getName())
+                && rowLabel != null
+                && seatNumber != null) {
+            int baseSeatNumber = seatNumber % 2 == 0 ? seatNumber - 1 : seatNumber;
+            return rowLabel + "-" + baseSeatNumber;
+        }
+        return null;
+    }
 }

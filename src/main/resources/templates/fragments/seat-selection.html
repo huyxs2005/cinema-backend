@@ -1,0 +1,92 @@
+﻿<div xmlns:th="http://www.thymeleaf.org"
+     th:fragment="seatLayout">
+    <div class="seat-picker-header">
+        <div>
+            <p class="eyebrow">Chọn ghế</p>
+            <h3 th:text="${showtimeDetails.movieTitle}">Tên phim</h3>
+            <p class="muted">
+                <span th:text="${showtimeDetails.auditoriumName}">Phòng 1</span>
+                ·
+                <span th:text="${#temporals.format(showtimeDetails.startTime, 'EEEE, dd/MM - HH:mm')}">11:30</span>
+            </p>
+        </div>
+        <div class="seat-timer" id="seatSelectionTimer" hidden>
+            Thời gian chọn ghế:
+            <strong id="seatSelectionCountdown">10:00</strong>
+        </div>
+    </div>
+    <div class="seat-layout"
+         th:with="posterUrl=${showtimeDetails.posterUrl != null ? showtimeDetails.posterUrl : '/img/hitsuyou.svg'}"
+         th:style="|--seat-poster:url('${posterUrl}');|"
+         th:attr="data-max-selection=${maxSeatsPerOrder},
+                  data-seat-map-endpoint=@{/api/showtimes/{id}/seats(id=${showtimeDetails.id})},
+                  data-showtime-id=${showtimeDetails.id},
+                  data-poster-url=${posterUrl}">
+        <div class="seat-map-panel">
+            <div class="seat-legend">
+                <div class="seat-legend__group seat-legend__group--status">
+                    <div class="seat-legend__item">
+                        <span class="seat-dot seat-dot--poster" th:style="|background-image:url('${posterUrl}');|"></span>
+                        Đã đặt
+                    </div>
+                    <div class="seat-legend__item">
+                        <span class="seat-dot seat-dot--selected"></span>
+                        Ghế bạn chọn
+                    </div>
+                </div>
+                <div class="seat-legend__divider"></div>
+                <div class="seat-legend__group">
+                    <div class="seat-legend__item"><span class="seat-type-chip seat-type-chip--standard"></span>Ghế thường</div>
+                    <div class="seat-legend__item"><span class="seat-type-chip seat-type-chip--vip"></span>Ghế VIP</div>
+                    <div class="seat-legend__item"><span class="seat-type-chip seat-type-chip--couple"></span>Ghế đôi</div>
+                </div>
+            </div>
+            <div class="seat-screen">MÀN HÌNH</div>
+            <div class="seat-grid" role="grid" aria-live="polite">
+                <div class="seat-row" role="row" th:each="row : ${seatMap}">
+                    <div class="row-label" role="rowheader" th:text="${row.label}">A</div>
+                    <div class="row-seats" role="gridcell">
+                        <button type="button"
+                                class="seat"
+                                role="gridcell"
+                                th:each="seat : ${row.seats}"
+                                th:classappend="${' seat--' + seat.status.toLowerCase() + ' seat--type-' + #strings.toLowerCase(seat.type != null ? seat.type : 'standard')}"
+                                th:attr="data-seat-id=${seat.seatId},
+                                         data-seat-label=${seat.label},
+                                         data-seat-row=${row.label},
+                                         data-seat-type=${seat.type != null ? seat.type : 'Standard'},
+                                         data-price=${seat.price != null ? seat.price : 0},
+                                         data-couple-group=${seat.coupleGroupId != null ? seat.coupleGroupId : ''}"
+                                th:disabled="${!seat.selectable}"
+                                th:text="${seat.label}">
+                            1
+                        </button>
+                    </div>
+                </div>
+                <p class="empty-state seat-grid-empty" th:if="${#lists.isEmpty(seatMap)}">Không có dữ liệu ghế cho suất chiếu này.</p>
+            </div>
+        </div>
+
+        <aside class="selection-sidebar">
+            <div class="sidebar-actions">
+                <button class="btn btn-outline" type="button" data-seat-back>Quay lại</button>
+                <button class="btn btn-primary" type="button" data-checkout-link disabled>Thanh toán</button>
+            </div>
+            <p class="muted">Tối đa <strong th:text="${maxSeatsPerOrder}">6</strong> ghế mỗi giao dịch.</p>
+            <div class="selected-list-wrapper">
+                <p class="empty-state" id="selectedSeatsPlaceholder">Chọn ghế để xem chi tiết.</p>
+                <ul id="selectedSeatsList"></ul>
+            </div>
+            <p class="warning-text" id="selectionLimitMessage" hidden></p>
+            <div class="sidebar__total">
+                <span>Tổng tiền</span>
+                <strong id="selectedTotal">0 đ</strong>
+            </div>
+        </aside>
+    </div>
+    <form id="seatSelectionForm" hidden>
+        <input id="seatIdsInput" name="seatIds" type="hidden">
+        <input id="showtimeIdInput" name="showtimeId" th:value="${showtimeDetails.id}" type="hidden">
+        <input id="holdTokenInput" name="holdToken" type="hidden">
+    </form>
+</div>

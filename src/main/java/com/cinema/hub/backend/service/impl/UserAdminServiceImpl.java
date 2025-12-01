@@ -10,8 +10,7 @@ import com.cinema.hub.backend.repository.SeatHoldRepository;
 import com.cinema.hub.backend.repository.UserAccountRepository;
 import com.cinema.hub.backend.service.UserAdminService;
 import com.cinema.hub.backend.specification.UserAccountSpecifications;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
+import com.cinema.hub.backend.util.TimeProvider;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -62,7 +61,7 @@ public class UserAdminServiceImpl implements UserAdminService {
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .role(role)
                 .active(request.getActive() == null || request.getActive())
-                .createdAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .createdAt(TimeProvider.now())
                 .build();
         return toDto(userAccountRepository.save(user));
     }

@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
+import com.cinema.hub.backend.util.TimeProvider;
 import java.text.Normalizer;
 import java.util.Arrays;
 import java.util.ArrayList;
@@ -290,7 +291,7 @@ public class MovieAdminService {
     }
 
     private String deriveStatus(LocalDate release, LocalDate endDate) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(TimeProvider.VN_ZONE_ID);
         if (endDate != null && endDate.isBefore(today)) {
             return STATUS_STOPPED;
         }

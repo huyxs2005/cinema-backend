@@ -9,8 +9,11 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
+import lombok.extern.slf4j.Slf4j;
+
 @Controller
 @RequiredArgsConstructor
+@Slf4j
 public class HomeController {
 
     private final MovieService movieService;
@@ -25,8 +28,11 @@ public class HomeController {
         try {
             MovieDetailDto movie = movieService.getMovieDetailById(id);
             model.addAttribute("movie", movie);
+            model.addAttribute("movieId", id);
+            log.info("Loaded movie detail {} ({})", movie.getTitle(), movie.getId());
             return "movie-detail";
         } catch (EntityNotFoundException ex) {
+            log.warn("Requested movie {} not found: {}", id, ex.getMessage());
             return "redirect:/";
         }
     }

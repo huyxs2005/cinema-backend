@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>V? xem phim</title>
+    <style>
+        body {font-family:'Segoe UI',Arial,sans-serif;background:#0f172a;color:#fff;padding:40px;}
+        .ticket {max-width:640px;margin:0 auto;background:#111827;border-radius:20px;overflow:hidden;box-shadow:0 35px 60px rgba(0,0,0,.4);}
+        .ticket-header {padding:24px;background:linear-gradient(135deg,#2563eb,#7c3aed);}
+        .ticket-body {display:flex;gap:24px;padding:32px;flex-wrap:wrap;}
+        .ticket-info {flex:1;min-width:240px;}
+        .label {text-transform:uppercase;font-size:12px;color:#94a3b8;letter-spacing:.08em;margin-bottom:4px;}
+        .value {font-size:18px;margin-bottom:16px;}
+        .qr {width:220px;height:220px;background:#fff;border-radius:12px;display:flex;align-items:center;justify-content:center;}
+        .qr img {width:200px;height:200px;}
+        .status {padding:6px 16px;border-radius:999px;display:inline-block;margin-top:12px;}
+        .status.Pending {background:#fde047;color:#713f12;}
+        .status.Paid {background:#22c55e;color:#064e3b;}
+        .status.Refunded {background:#f87171;color:#7f1d1d;}
+        .ticket-actions {padding:0 32px 32px;}
+        .ticket-actions a {color:#60a5fa;text-decoration:none;font-weight:600;}
+    </style>
+</head>
+<body>
+<div class="ticket">
+    <div class="ticket-header">
+        <h1 th:text="${booking.showtime.movie.title}">Movie</h1>
+        <p th:text="'M? ??t ch? ' + ${booking.bookingCode}"></p>
+    </div>
+    <div class="ticket-body">
+        <div class="ticket-info">
+            <div>
+                <div class="label">Su?t chi?u</div>
+                <div class="value" th:text="${#temporals.format(booking.showtime.startTime, 'HH:mm dd/MM/yyyy')}"></div>
+            </div>
+            <div>
+                <div class="label">R?p</div>
+                <div class="value" th:text="${booking.showtime.auditorium.name}"></div>
+            </div>
+            <div>
+                <div class="label">Gh?</div>
+                <div class="value" th:text="${seats}"></div>
+            </div>
+            <div>
+                <div class="label">Tr?ng th?i v?</div>
+                <span class="status" th:classappend="${booking.paymentStatus}"
+                      th:text="${booking.paymentStatus}"></span>
+            </div>
+        </div>
+        <div class="qr">
+            <img th:src="${qrUrl}" alt="QR v?"/>
+        </div>
+    </div>
+    <div class="ticket-actions">
+        <a th:href="@{'/movies/tickets/' + ${booking.bookingCode} + '/download'}">T?i v? d?ng PDF</a>
+    </div>
+</div>
+</body>
+</html>

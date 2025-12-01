@@ -68,3 +68,7 @@ Cinema HUB là hệ thống quản lý rạp chiếu phim (Spring Boot + Thymele
 5. Admin dashboard là công cụ duy nhất để team nhập dữ liệu demo/production.
 
 Với file này, mọi người sẽ nắm được các module chính và cách vận hành khi nhận dự án. Chúc team merge suôn sẻ! :)
+### 2.8 Checkout VietQR (PayOS)
+- Quy trinh thanh toan tach khoi modal cu, nut `Thanh toan` tren seat-picker chuyen nguoi dung den `/checkout/{showtimeId}?token=...` va render bang Thymeleaf.
+- Trang checkout goi `/api/payment/payos/checkout` ngay khi load de xin QR, hien thong tin PayOS, dem nguoc thoi gian giu ghe va poll trang thai booking truoc khi redirect `/movies/confirmation/{bookingCode}`.
+- Khi user refresh/roi trang hoac quay lai chon ghe, booking cho va hold cu duoc huy/giai phong de tranh giu ghe khong can thiet.

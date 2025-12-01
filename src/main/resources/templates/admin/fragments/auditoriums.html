@@ -41,12 +41,77 @@
                                                 <span class="visually-hidden">Giảm</span>
                                             </button>
                                         </div>
-                                    </div>
-                                    <div class="text-danger small mt-1" id="auditoriumRowsError"></div>
                                 </div>
-                                <div class="mb-3">
-                                    <label for="auditoriumColumns" class="form-label">Số ghế mỗi hàng <span class="text-danger">*</span></label>
-                                    <div class="numeric-stepper" data-stepper>
+                                <div class="text-danger small mt-1" id="auditoriumRowsError"></div>
+                            </div>
+                        <div class="mb-3">
+                            <label for="auditoriumNormalRows" class="form-label">Số hàng ghế thường <span class="text-danger">*</span></label>
+                            <div class="numeric-stepper" data-stepper>
+                                <input type="number"
+                                       id="auditoriumNormalRows"
+                                       class="form-control"
+                                       min="0"
+                                       max="26"
+                                       step="1"
+                                       inputmode="numeric"
+                                       pattern="[0-9]*"
+                                       data-numeric-only="true"
+                                       required>
+                                <div class="numeric-stepper-controls">
+                                    <button type="button"
+                                            class="numeric-stepper-btn numeric-stepper-btn--up"
+                                            data-step="1"
+                                            aria-label="Tăng số hàng ghế thường">
+                                        <span class="numeric-stepper-icon"></span>
+                                        <span class="visually-hidden">Tăng</span>
+                                    </button>
+                                    <button type="button"
+                                            class="numeric-stepper-btn numeric-stepper-btn--down"
+                                            data-step="-1"
+                                            aria-label="Giảm số hàng ghế thường">
+                                        <span class="numeric-stepper-icon"></span>
+                                        <span class="visually-hidden">Giảm</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="text-danger small mt-1" id="auditoriumNormalRowsError"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="auditoriumCoupleRows" class="form-label">Số hàng ghế đôi <span class="text-danger">*</span></label>
+                            <div class="numeric-stepper" data-stepper>
+                                <input type="number"
+                                       id="auditoriumCoupleRows"
+                                       class="form-control"
+                                       min="0"
+                                       max="26"
+                                       step="1"
+                                       inputmode="numeric"
+                                       pattern="[0-9]*"
+                                       data-numeric-only="true"
+                                       required>
+                                <div class="numeric-stepper-controls">
+                                    <button type="button"
+                                            class="numeric-stepper-btn numeric-stepper-btn--up"
+                                            data-step="1"
+                                            aria-label="Tăng số hàng ghế đôi">
+                                        <span class="numeric-stepper-icon"></span>
+                                        <span class="visually-hidden">Tăng</span>
+                                    </button>
+                                    <button type="button"
+                                            class="numeric-stepper-btn numeric-stepper-btn--down"
+                                            data-step="-1"
+                                            aria-label="Giảm số hàng ghế đôi">
+                                        <span class="numeric-stepper-icon"></span>
+                                        <span class="visually-hidden">Giảm</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="form-text text-muted">Số hàng VIP = Tổng hàng - Thường - Đôi.</div>
+                            <div class="text-danger small mt-1" id="auditoriumCoupleRowsError"></div>
+                        </div>
+                            <div class="mb-3">
+                                <label for="auditoriumColumns" class="form-label">Số ghế mỗi hàng <span class="text-danger">*</span></label>
+                                <div class="numeric-stepper" data-stepper>
                                         <input type="number"
                                                id="auditoriumColumns"
                                                class="form-control"

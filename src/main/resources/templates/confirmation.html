@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/header :: head('Booking Confirmation | Cinema Hub')}"></head>
+<body>
+<div th:replace="~{fragments/header :: siteHeader}"></div>
+
+<main class="page confirmation-page">
+    <section class="section">
+        <div class="confirmation-shell">
+            <div class="confirmation-card">
+                <div class="confirmation-card__status">
+                    <div class="confirmation-status-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="11" opacity="0.25"/>
+                            <path d="M7 12.5l3.5 3.5 6-7"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="eyebrow">Thanh toán thành công</p>
+                        <h1>Vé của bạn đã sẵn sàng</h1>
+                        <p>Chúng tôi đã gửi email xác nhận đến
+                            <strong th:text="${booking.email}">guest@cinema.com</strong>.</p>
+                    </div>
+                </div>
+
+                <div class="confirmation-card__grid">
+                    <div>
+                        <span>Tên phim</span>
+                        <strong th:text="${booking.movieTitle}">Neon Nights</strong>
+                    </div>
+                    <div>
+                        <span>Rạp</span>
+                        <strong th:text="${booking.theaterName}">Cinema Hub Midtown</strong>
+                    </div>
+                    <div>
+                        <span>Giờ chiếu</span>
+                        <strong th:text="${booking.showtimeText}">Fri - 7:30 PM</strong>
+                    </div>
+                    <div>
+                        <span>Ghế</span>
+                        <strong th:text="${booking.seatLabelsAsString}">A5, A6</strong>
+                    </div>
+                    <div>
+                        <span>Định dạng</span>
+                        <strong th:text="${booking.format}">2D</strong>
+                    </div>
+                    <div>
+                        <span>Thành tiền</span>
+                        <strong th:text="${booking.total}">600.000 đ</strong>
+                    </div>
+                </div>
+
+                <div class="confirmation-ticket">
+                    <div class="ticket-meta">
+                        <p>Mã đặt vé</p>
+                        <strong th:text="${booking.bookingCode}">CH-84921</strong>
+                        <p class="text-light">Lưu lại mã này để tra cứu hoặc hỗ trợ nhanh.</p>
+                    </div>
+                    <div class="ticket-qr">
+                        <img th:src="${booking.qrCodeUrl}" alt="QR code for ticket" src="/images/qr-placeholder.png">
+                        <p class="text-light">Mở ứng dụng ngân hàng tại quầy và quét để nhận vé.</p>
+                    </div>
+                </div>
+
+                <div class="confirmation__actions">
+                    <a class="btn btn-primary" th:href="@{/profile(tab='history')}">Xem lịch sử mua vé</a>
+                    <a class="btn confirmation-btn-outline" th:href="@{/movies/showtimes}">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <span>Đặt suất khác</span>
+                    </a>
+                    <button class="btn confirmation-btn-ghost" type="button" onclick="window.print()">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M7 9V4h10v5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M6 14h12v6H6z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M6 11H5a2 2 0 0 0-2 2v4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <circle cx="18" cy="12" r="1" />
+                        </svg>
+                        <span>In vé</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<div th:replace="~{fragments/header :: siteFooter}"></div>
+</body>
+</html>

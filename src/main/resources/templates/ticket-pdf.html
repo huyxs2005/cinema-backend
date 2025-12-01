@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 32px;
+            font-family: 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f6fb;
+            color: #1f2937;
+        }
+
+        .ticket-wrapper {
+            max-width: 720px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 24px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 30px 60px rgba(15, 23, 42, 0.15);
+            overflow: hidden;
+        }
+
+        .ticket-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 32px;
+            border-bottom: 1px dashed rgba(15, 23, 42, 0.12);
+        }
+
+        .logo {
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-size: 15px;
+            color: #0f172a;
+        }
+
+        .ticket-title {
+            text-align: right;
+        }
+
+        .ticket-title h2 {
+            margin: 0;
+            font-size: 14px;
+            letter-spacing: 0.4em;
+            color: #94a3b8;
+        }
+
+        .ticket-title .code {
+            margin-top: 8px;
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 999px;
+            border: 1px solid rgba(239, 68, 68, 0.35);
+            color: #ef4444;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .movie-section {
+            padding: 28px 32px 12px;
+        }
+
+        .movie-title {
+            margin: 0;
+            font-size: 26px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #ef4444;
+        }
+
+        .movie-original {
+            margin: 6px 0 0;
+            font-size: 14px;
+            color: #64748b;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 18px;
+            padding: 8px 32px 24px;
+        }
+
+        .info-block {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .info-block span {
+            font-size: 12px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #94a3b8;
+        }
+
+        .info-block strong {
+            font-size: 17px;
+            color: #0f172a;
+        }
+
+        .info-block.booking {
+            padding: 14px;
+            border: 1px dashed rgba(239, 68, 68, 0.4);
+            border-radius: 16px;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .seat-section {
+            padding: 18px 32px;
+            background: #f8fafc;
+            border-top: 1px dashed rgba(15, 23, 42, 0.12);
+            border-bottom: 1px dashed rgba(15, 23, 42, 0.12);
+        }
+
+        .seat-section h4 {
+            margin: 0 0 8px;
+            font-size: 13px;
+            letter-spacing: 0.12em;
+            color: #94a3b8;
+        }
+
+        .seat-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 12px;
+        }
+
+        .seat-pill {
+            background: rgba(15, 23, 42, 0.04);
+            border-radius: 999px;
+            padding: 6px 14px;
+            font-weight: 600;
+            font-size: 14px;
+            color: #111827;
+        }
+
+        .ticket-footer {
+            padding: 28px 32px 36px;
+            text-align: center;
+        }
+
+        .ticket-footer img {
+            width: 180px;
+            height: 180px;
+            margin-bottom: 12px;
+        }
+
+        .ticket-footer p {
+            margin: 0;
+            font-size: 13px;
+            color: #475569;
+        }
+    </style>
+</head>
+<body>
+<div class="ticket-wrapper">
+    <header class="ticket-header">
+        <div class="logo">Cinema HUB</div>
+        <div class="ticket-title">
+            <h2>VÉ ĐIỆN TỬ</h2>
+            <span class="code" th:text="${ticket.bookingCode}">BK-000000</span>
+        </div>
+    </header>
+
+    <section class="movie-section">
+        <h1 class="movie-title" th:text="${ticket.movieTitle}">MOVIE TITLE</h1>
+        <p class="movie-original" th:if="${ticket.originalTitle}"
+           th:text="${ticket.originalTitle}">Original Title</p>
+    </section>
+
+    <section class="info-grid">
+        <div class="info-block">
+            <span>Rạp</span>
+            <strong th:text="${ticket.cinemaName}">Cinema HUB</strong>
+        </div>
+        <div class="info-block">
+            <span>Phòng</span>
+            <strong th:text="${ticket.auditoriumName}">Hall 01</strong>
+        </div>
+        <div class="info-block">
+            <span>Thời gian</span>
+            <strong th:text="${ticket.showtime}">10:00 - 01/01/2025</strong>
+        </div>
+        <div class="info-block">
+            <span>Tổng tiền</span>
+            <strong th:text="${ticket.total}">120.000 đ</strong>
+        </div>
+        <div class="info-block">
+            <span>Ngày thanh toán</span>
+            <strong th:text="${ticket.issuedAt}">01/01/2025 08:00</strong>
+        </div>
+        <div class="info-block booking">
+            <span>Mã đặt vé</span>
+            <strong style="font-size:20px" th:text="${ticket.bookingCode}">BK-000000</strong>
+        </div>
+    </section>
+
+    <section class="seat-section">
+        <h4>Chi tiết ghế</h4>
+        <div class="seat-list">
+            <span class="seat-pill" th:each="seat : ${ticket.seatDetails}" th:text="${seat}">Ghế A5 (Standard)</span>
+        </div>
+    </section>
+
+    <footer class="ticket-footer">
+        <img th:src="${ticket.qrDataUrl}" alt="QR Code"/>
+        <p>Vui lòng đưa mã này cho nhân viên soát vé</p>
+    </footer>
+</div>
+</body>
+</html>

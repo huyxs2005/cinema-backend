@@ -12,6 +12,7 @@ import com.cinema.hub.backend.repository.SeatRepository;
 import com.cinema.hub.backend.repository.ShowtimeRepository;
 import com.cinema.hub.backend.service.AuditoriumService;
 import com.cinema.hub.backend.specification.AuditoriumSpecifications;
+import com.cinema.hub.backend.util.SeatLayoutCalculator;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.ArrayList;
@@ -54,22 +55,28 @@ public class AuditoriumServiceImpl implements AuditoriumService {
     public AuditoriumResponse create(AuditoriumRequest request) {
         Auditorium auditorium = new Auditorium();
         applyRequest(auditorium, request);
+        SeatLayoutCalculator.SeatRowDistribution distribution = distributionFromRequest(request);
         Auditorium saved = auditoriumRepository.save(auditorium);
-        createDefaultSeats(saved);
-        return auditoriumMapper.toResponse(saved);
+        createDefaultSeats(saved, distribution);
+        return auditoriumMapper.toResponse(saved, distribution);
     }
 
     @Override
     public AuditoriumResponse update(int id, AuditoriumRequest request) {
         Auditorium auditorium = getEntity(id);
         applyRequest(auditorium, request);
-        return auditoriumMapper.toResponse(auditoriumRepository.save(auditorium));
+        SeatLayoutCalculator.SeatRowDistribution distribution = distributionFromRequest(request);
+        seatRepository.deleteByAuditorium_Id(auditorium.getId());
+        Auditorium saved = auditoriumRepository.save(auditorium);
+        createDefaultSeats(saved, distribution);
+        return auditoriumMapper.toResponse(saved, distribution);
     }
 
     @Override
     @Transactional(readOnly = true)
     public AuditoriumResponse get(int id) {
-        return auditoriumMapper.toResponse(getEntity(id));
+        Auditorium auditorium = getEntity(id);
+        return auditoriumMapper.toResponse(auditorium, summarizeSeatRows(auditorium));
     }
 
     @Override
@@ -92,7 +99,8 @@ public class AuditoriumServiceImpl implements AuditoriumService {
     public AuditoriumResponse updateActive(int id, boolean active) {
         Auditorium auditorium = getEntity(id);
         auditorium.setActive(active);
-        return auditoriumMapper.toResponse(auditoriumRepository.save(auditorium));
+        Auditorium saved = auditoriumRepository.save(auditorium);
+        return auditoriumMapper.toResponse(saved, summarizeSeatRows(saved));
     }
 
     @Override
@@ -100,7 +108,8 @@ public class AuditoriumServiceImpl implements AuditoriumService {
     public PageResponse<AuditoriumResponse> search(String name, Boolean active, Pageable pageable) {
         Page<Auditorium> page = auditoriumRepository.findAll(
                 AuditoriumSpecifications.filter(name, active), pageable);
-        return PageResponse.from(page.map(auditoriumMapper::toResponse));
+        return PageResponse.from(page.map(auditorium ->
+                auditoriumMapper.toResponse(auditorium, summarizeSeatRows(auditorium))));
     }
 
     private Auditorium getEntity(int id) {
@@ -116,7 +125,8 @@ public class AuditoriumServiceImpl implements AuditoriumService {
         auditorium.setActive(request.getActive());
     }
 
-    private void createDefaultSeats(Auditorium auditorium) {
+    private void createDefaultSeats(Auditorium auditorium,
+                                    SeatLayoutCalculator.SeatRowDistribution distribution) {
         Integer rows = auditorium.getNumberOfRows();
         Integer columns = auditorium.getNumberOfColumns();
         if (rows == null || rows <= 0 || columns == null || columns <= 0) {
@@ -125,19 +135,8 @@ public class AuditoriumServiceImpl implements AuditoriumService {
 
         int totalRows = rows;
         int totalColumns = columns;
-        int coupleRows = determineCoupleRows(totalRows);
-        int normalRows = (int) Math.floor(totalRows * 0.2);
-        if (normalRows <= 0 && totalRows > 0) {
-            normalRows = 1;
-        }
-        if (normalRows + coupleRows > totalRows) {
-            normalRows = Math.max(0, totalRows - coupleRows);
-        }
-        int vipRows = totalRows - normalRows - coupleRows;
-        if (vipRows < 0) {
-            vipRows = 0;
-            normalRows = totalRows - coupleRows;
-        }
+        int normalRows = distribution.standardRows();
+        int coupleRows = distribution.coupleRows();
 
         SeatType standardSeat = entityManager.getReference(SeatType.class, STANDARD_SEAT_TYPE_ID);
         SeatType vipSeat = entityManager.getReference(SeatType.class, VIP_SEAT_TYPE_ID);
@@ -185,16 +184,6 @@ public class AuditoriumServiceImpl implements AuditoriumService {
         return vipSeat;
     }
 
-    private int determineCoupleRows(int totalRows) {
-        if (totalRows >= 20) {
-            return 2;
-        }
-        if (totalRows >= 10) {
-            return 1;
-        }
-        return 0;
-    }
-
     private String toRowLabel(int index) {
         StringBuilder builder = new StringBuilder();
         int current = index;
@@ -204,5 +193,34 @@ public class AuditoriumServiceImpl implements AuditoriumService {
             current = (current / 26) - 1;
         }
         return builder.toString();
+    }
+
+    private SeatLayoutCalculator.SeatRowDistribution distributionFromRequest(AuditoriumRequest request) {
+        int totalRows = request.getNumberOfRows() != null ? request.getNumberOfRows() : 0;
+        return SeatLayoutCalculator.fromUserInput(totalRows,
+                request.getNormalRowCount(),
+                request.getCoupleRowCount());
+    }
+
+    private SeatLayoutCalculator.SeatRowDistribution summarizeSeatRows(Auditorium auditorium) {
+        List<Object[]> rows = seatRepository.countDistinctRowsBySeatType(auditorium.getId());
+        int standard = 0;
+        int vip = 0;
+        int couple = 0;
+        for (Object[] row : rows) {
+            if (row == null || row.length < 2) {
+                continue;
+            }
+            Integer typeId = row[0] != null ? ((Number) row[0]).intValue() : null;
+            int count = row[1] != null ? ((Number) row[1]).intValue() : 0;
+            if (typeId == STANDARD_SEAT_TYPE_ID) {
+                standard = count;
+            } else if (typeId == VIP_SEAT_TYPE_ID) {
+                vip = count;
+            } else if (typeId == COUPLE_SEAT_TYPE_ID) {
+                couple = count;
+            }
+        }
+        return new SeatLayoutCalculator.SeatRowDistribution(standard, vip, couple);
     }
 }

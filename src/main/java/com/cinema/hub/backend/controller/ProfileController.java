@@ -4,6 +4,7 @@ import com.cinema.hub.backend.dto.profile.ChangePasswordRequestDto;
 import com.cinema.hub.backend.dto.profile.UpdateProfileRequestDto;
 import com.cinema.hub.backend.dto.profile.UserProfileDto;
 import com.cinema.hub.backend.service.ProfileService;
+import com.cinema.hub.backend.web.view.BookingHistoryView;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -27,6 +29,11 @@ public class ProfileController {
     @GetMapping("/{userId}")
     public ResponseEntity<UserProfileDto> getProfile(@PathVariable Integer userId) {
         return ResponseEntity.ok(profileService.getProfile(userId));
+    }
+
+    @GetMapping("/{userId}/history")
+    public ResponseEntity<List<BookingHistoryView>> getHistory(@PathVariable Integer userId) {
+        return ResponseEntity.ok(profileService.getBookingHistory(userId));
     }
 
     @PutMapping("/{userId}")

@@ -1,5 +1,6 @@
 package com.cinema.hub.backend.dto.auditorium;
 
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -24,6 +25,30 @@ public class AuditoriumRequest {
     @Max(value = 30, message = "Số ghế mỗi hàng tối đa là 30")
     private Integer numberOfColumns;
 
+    @NotNull(message = "Số hàng ghế thường bắt buộc phải nhập")
+    @Min(value = 0, message = "Số hàng ghế thường không hợp lệ")
+    @Max(value = 26, message = "Số hàng ghế thường tối đa 26")
+    private Integer normalRowCount;
+
+    @NotNull(message = "Số hàng ghế đôi bắt buộc phải nhập")
+    @Min(value = 0, message = "Số hàng ghế đôi không hợp lệ")
+    @Max(value = 26, message = "Số hàng ghế đôi tối đa 26")
+    private Integer coupleRowCount;
+
     @NotNull(message = "Trạng thái bắt buộc phải chọn")
     private Boolean active;
+
+    @AssertTrue(message = "Tổng số hàng Standard và Couple không được vượt quá tổng số hàng.")
+    public boolean isValidRowAllocation() {
+        if (numberOfRows == null) {
+            return true;
+        }
+        int standard = normalize(normalRowCount);
+        int couple = normalize(coupleRowCount);
+        return standard + couple <= numberOfRows;
+    }
+
+    private int normalize(Integer value) {
+        return value == null ? 0 : Math.max(0, value);
+    }
 }

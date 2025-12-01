@@ -3,6 +3,7 @@ package com.cinema.hub.backend.repository;
 import com.cinema.hub.backend.entity.Showtime;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -32,4 +33,12 @@ public interface ShowtimeRepository extends JpaRepository<Showtime, Integer>, Jp
                                                                           LocalDateTime end);
 
     boolean existsByAuditorium_Id(Integer auditoriumId);
+
+    @Query("""
+            select s from Showtime s
+            join fetch s.movie m
+            join fetch s.auditorium a
+            where s.id = :id
+            """)
+    Optional<Showtime> findByIdWithDetails(@Param("id") Integer id);
 }

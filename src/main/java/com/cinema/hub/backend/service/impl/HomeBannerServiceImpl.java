@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
+import com.cinema.hub.backend.util.TimeProvider;
 import java.util.List;
 import java.util.Locale;
 import org.springframework.util.StringUtils;
@@ -31,7 +32,7 @@ public class HomeBannerServiceImpl implements HomeBannerService {
     @Override
     public List<HomeBannerResponseDto> getActiveBannersForHomepage() {
         refreshBannerStatuses();
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(TimeProvider.VN_ZONE_ID);
         return homeBannerRepository.findByIsActiveTrueOrderBySortOrderAsc().stream()
                 .filter(banner -> isWithinActiveWindow(banner, today))
                 .map(this::mapToResponseDto)
@@ -167,7 +168,7 @@ public class HomeBannerServiceImpl implements HomeBannerService {
     }
 
     private void refreshBannerStatuses() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(TimeProvider.VN_ZONE_ID);
         List<HomeBanner> activeBanners = homeBannerRepository.findByIsActiveTrueOrderBySortOrderAsc();
         boolean updated = false;
         for (HomeBanner banner : activeBanners) {

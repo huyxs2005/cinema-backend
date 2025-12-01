@@ -13,6 +13,7 @@ import com.cinema.hub.backend.specification.PromotionSpecifications;
 import jakarta.persistence.EntityNotFoundException;
 import java.text.Normalizer;
 import java.time.LocalDate;
+import com.cinema.hub.backend.util.TimeProvider;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -97,7 +98,7 @@ public class PromotionServiceImpl implements PromotionService {
     @Transactional(readOnly = true)
     public PageResponse<PromotionSummaryDto> getPublicPromotions(Pageable pageable) {
         Specification<Promotion> spec = Specification.where(PromotionSpecifications.hasStatus(true))
-                .and(PromotionSpecifications.publishedUpTo(LocalDate.now()));
+                .and(PromotionSpecifications.publishedUpTo(LocalDate.now(TimeProvider.VN_ZONE_ID)));
         Page<Promotion> page = promotionRepository.findAll(spec, pageable);
         return PageResponse.from(page.map(PromotionMapper::toSummary));
     }
@@ -108,7 +109,7 @@ public class PromotionServiceImpl implements PromotionService {
         Promotion promotion = promotionRepository.findBySlugIgnoreCase(slug)
                 .filter(Promotion::getIsActive)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Promotion not found"));
-        if (promotion.getPublishedDate() != null && promotion.getPublishedDate().isAfter(LocalDate.now())) {
+        if (promotion.getPublishedDate() != null && promotion.getPublishedDate().isAfter(LocalDate.now(TimeProvider.VN_ZONE_ID))) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Promotion not available yet");
         }
         return PromotionMapper.toDetail(promotion);
@@ -118,7 +119,7 @@ public class PromotionServiceImpl implements PromotionService {
     @Transactional(readOnly = true)
     public List<PromotionSummaryDto> getActiveOptions() {
         Specification<Promotion> spec = Specification.where(PromotionSpecifications.hasStatus(true))
-                .and(PromotionSpecifications.publishedUpTo(LocalDate.now()));
+                .and(PromotionSpecifications.publishedUpTo(LocalDate.now(TimeProvider.VN_ZONE_ID)));
         Sort sort = Sort.by(Sort.Order.asc("title"));
         return promotionRepository.findAll(spec, sort).stream()
                 .map(PromotionMapper::toSummary)
@@ -135,7 +136,7 @@ public class PromotionServiceImpl implements PromotionService {
         entity.setThumbnailUrl(dto.getThumbnailUrl());
         entity.setContent(dto.getContent());
         entity.setImgContentUrl(dto.getImgContentUrl());
-        entity.setPublishedDate(dto.getPublishedDate() != null ? dto.getPublishedDate() : LocalDate.now());
+        entity.setPublishedDate(dto.getPublishedDate() != null ? dto.getPublishedDate() : LocalDate.now(TimeProvider.VN_ZONE_ID));
         entity.setIsActive(dto.getActive());
     }
 

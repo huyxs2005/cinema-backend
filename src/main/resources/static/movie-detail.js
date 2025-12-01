@@ -33,10 +33,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const movieId = showtimeSection.dataset.movieId;
     const dateStrip = document.getElementById('showtimeDateStrip');
     const slotGrid = document.getElementById('showtimeSlotGrid');
-    const selectionPlaceholder = document.getElementById('showtimeSelectionPlaceholder');
+    const seatWrapper = document.getElementById('seatSelectionWrapper');
+    const seatMessage = document.getElementById('seatSelectionMessage');
+    const seatContainer = document.getElementById('seatSelectionContainer');
+    const loginTrigger = document.getElementById('openLoginModal') || document.querySelector('[data-open-modal="login"]');
+    const SEAT_INTENT_STORAGE_KEY = 'cinemaSeatIntent';
     const today = new Date();
     const endDate = new Date();
     endDate.setDate(today.getDate() + 6);
+    const urlParams = new URLSearchParams(window.location.search);
+    const queryShowtimeParam = urlParams.get('showtimeId') || urlParams.get('showtime');
+    const pendingSeatIntent = consumeSeatIntentForMovie(movieId);
+    let pendingAutoShowtimeId = queryShowtimeParam || pendingSeatIntent?.showtimeId || null;
+    if (pendingAutoShowtimeId) {
+        pendingAutoShowtimeId = String(pendingAutoShowtimeId);
+    }
 
     const formatDateParam = (date) => {
         const year = date.getFullYear();
@@ -66,32 +77,128 @@ document.addEventListener('DOMContentLoaded', () => {
     const range = buildRange();
     let groupedShowtimes = {};
     let activeDateKey = formatDateParam(today);
+    let shouldScrollAfterLoad = Boolean(pendingAutoShowtimeId);
+
+    const resetSeatSelection = () => {
+        if (seatContainer) {
+            seatContainer.hidden = true;
+            seatContainer.innerHTML = '';
+        }
+        if (seatMessage) {
+            seatMessage.hidden = true;
+            seatMessage.textContent = '';
+        }
+        if (seatWrapper) {
+            seatWrapper.hidden = true;
+        }
+    };
+
+    const loadSeatLayout = async (slot, timeLabel) => {
+        if (!seatContainer || !seatWrapper) {
+            return;
+        }
+        seatWrapper.hidden = false;
+        if (seatMessage) {
+            seatMessage.hidden = false;
+            seatMessage.textContent = `Đang tải sơ đồ ghế cho suất ${timeLabel} - ${slot.auditoriumName || 'phòng chiếu'}...`;
+        }
+        seatContainer.hidden = true;
+        seatContainer.innerHTML = '';
+        if (shouldScrollAfterLoad && seatWrapper) {
+            seatWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        if (window.releaseCurrentSeatHold) {
+            try {
+                await window.releaseCurrentSeatHold();
+            } catch (error) {
+                // ignore
+            }
+        }
+        try {
+            const response = await fetch(`/movies/seat-fragment/${slot.id}`);
+            if (response.status === 401 || response.status === 403) {
+                if (seatMessage) {
+                    seatMessage.hidden = false;
+                    seatMessage.textContent = 'Bạn cần đăng nhập để đặt và giữ ghế.';
+                }
+                seatContainer.hidden = true;
+                if (seatWrapper) {
+                    seatWrapper.hidden = false;
+                }
+                if (window.setLoginPromptMessage) {
+                    window.setLoginPromptMessage('Bạn cần phải đăng nhập để có thể đặt vé');
+                    window.loginPromptLocked = true;
+                }
+                if (loginTrigger) {
+                    loginTrigger.click();
+                }
+                return;
+            }
+            if (!response.ok) {
+                throw new Error('seat_fragment_error');
+            }
+            const html = await response.text();
+            seatContainer.innerHTML = html;
+            seatContainer.hidden = false;
+            if (seatMessage) {
+                seatMessage.hidden = true;
+            }
+            if (window.setLoginPromptMessage) {
+                window.setLoginPromptMessage();
+            }
+            if (window.initSeatSelection) {
+                window.initSeatSelection(seatContainer);
+            }
+            if (shouldScrollAfterLoad && seatWrapper) {
+                seatWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            shouldScrollAfterLoad = false;
+        } catch (error) {
+            if (seatMessage) {
+                seatMessage.hidden = false;
+                seatMessage.textContent = 'Không thể tải sơ đồ ghế. Vui lòng thử lại sau.';
+            }
+            seatContainer.hidden = true;
+            shouldScrollAfterLoad = false;
+        }
+    };
 
     const renderSlots = (dateKey) => {
         slotGrid.innerHTML = '';
         const slots = groupedShowtimes[dateKey] || [];
         if (slots.length === 0) {
             slotGrid.innerHTML = '<div class="showtime-empty-state">Không có suất chiếu cho ngày này.</div>';
-            selectionPlaceholder.classList.remove('active');
-            selectionPlaceholder.textContent = 'Chọn một suất chiếu để xem chi tiết ghế (tính năng sẽ được cập nhật).';
+            resetSeatSelection();
             return;
         }
         slots.forEach((slot) => {
             const btn = document.createElement('button');
             btn.className = 'showtime-slot';
+            btn.dataset.showtimeId = String(slot.id);
             const timeLabel = formatTimeLabel(slot.startTime);
             btn.innerHTML = `<strong>${timeLabel}</strong><small>${slot.auditoriumName || 'Phòng chiếu'}</small>`;
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.showtime-slot.active').forEach((el) => el.classList.remove('active'));
                 btn.classList.add('active');
-                selectionPlaceholder.classList.add('active');
-                selectionPlaceholder.textContent = `Bạn đã chọn suất ${timeLabel} - ${slot.auditoriumName || 'phòng chiếu'} (tính năng chọn ghế sẽ được cập nhật).`;
+                loadSeatLayout(slot, timeLabel);
             });
             slotGrid.appendChild(btn);
         });
+        if (pendingAutoShowtimeId) {
+            const autoButton = slotGrid.querySelector(`.showtime-slot[data-showtime-id="${pendingAutoShowtimeId}"]`);
+            if (autoButton) {
+                pendingAutoShowtimeId = null;
+                autoButton.click();
+            }
+        }
     };
 
-    const setActiveDate = (dateKey) => {
+    const setActiveDate = (dateKey, options = {}) => {
+        const shouldResetSeats = options.resetSeats !== false;
+        if (shouldResetSeats) {
+            resetSeatSelection();
+            document.querySelectorAll('.showtime-slot.active').forEach((el) => el.classList.remove('active'));
+        }
         activeDateKey = dateKey;
         dateStrip.querySelectorAll('.showtime-date-card').forEach((card) => {
             if (card.dataset.dateKey === dateKey) {
@@ -121,6 +228,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
+    const findDateKeyForShowtime = (targetId) => {
+        if (!targetId) {
+            return null;
+        }
+        const lookup = String(targetId);
+        return Object.keys(groupedShowtimes).find((key) =>
+            (groupedShowtimes[key] || []).some((slot) => String(slot.id) === lookup)
+        ) || null;
+    };
+
     const applyShowtimes = (items) => {
         groupedShowtimes = items.reduce((acc, item) => {
             if (!item.startTime) {
@@ -134,8 +251,17 @@ document.addEventListener('DOMContentLoaded', () => {
         Object.keys(groupedShowtimes).forEach((key) => {
             groupedShowtimes[key].sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
         });
+        if (pendingAutoShowtimeId) {
+            const autoDateKey = findDateKeyForShowtime(pendingAutoShowtimeId);
+            if (autoDateKey) {
+                activeDateKey = autoDateKey;
+            } else {
+                pendingAutoShowtimeId = null;
+                shouldScrollAfterLoad = false;
+            }
+        }
         renderDateStrip();
-        setActiveDate(activeDateKey);
+        setActiveDate(activeDateKey, { resetSeats: !pendingAutoShowtimeId });
     };
 
     const fetchShowtimes = () => {
@@ -144,7 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fetch(`/api/showtimes/movie/${movieId}?from=${fromParam}&to=${toParam}`)
             .then((response) => {
                 if (!response.ok) {
-                    throw new Error('Failed to load showtimes');
+                    throw new Error('failed_showtimes');
                 }
                 return response.json();
             })
@@ -155,8 +281,36 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     };
 
-    // Initial render and async fetch of showtime slots.
     renderDateStrip();
     renderSlots(activeDateKey);
     fetchShowtimes();
+
+    function consumeSeatIntentForMovie(expectedMovieId) {
+        try {
+            const storage = window.sessionStorage;
+            if (!storage) {
+                return null;
+            }
+            const raw = storage.getItem(SEAT_INTENT_STORAGE_KEY);
+            if (!raw) {
+                return null;
+            }
+            storage.removeItem(SEAT_INTENT_STORAGE_KEY);
+            const payload = JSON.parse(raw);
+            if (payload?.expiresAt && Date.now() > payload.expiresAt) {
+                return null;
+            }
+            if (payload?.movieId && expectedMovieId && String(payload.movieId) !== String(expectedMovieId)) {
+                return null;
+            }
+            return payload;
+        } catch (error) {
+            try {
+                window.sessionStorage?.removeItem(SEAT_INTENT_STORAGE_KEY);
+            } catch (err) {
+                // ignore
+            }
+            return null;
+        }
+    }
 });

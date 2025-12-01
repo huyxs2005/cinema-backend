@@ -11,6 +11,7 @@ import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import com.cinema.hub.backend.util.TimeProvider;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -61,25 +62,25 @@ public class Promotion {
 
     @PrePersist
     void onCreate() {
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = TimeProvider.now();
         this.createdAt = now;
         this.updatedAt = now;
         if (this.isActive == null) {
             this.isActive = Boolean.TRUE;
         }
         if (this.publishedDate == null) {
-            this.publishedDate = LocalDate.now();
+            this.publishedDate = LocalDate.now(TimeProvider.VN_ZONE_ID);
         }
     }
 
     @PreUpdate
     void onUpdate() {
-        this.updatedAt = OffsetDateTime.now();
+        this.updatedAt = TimeProvider.now();
         if (this.isActive == null) {
             this.isActive = Boolean.TRUE;
         }
         if (this.publishedDate == null) {
-            this.publishedDate = LocalDate.now();
+            this.publishedDate = LocalDate.now(TimeProvider.VN_ZONE_ID);
         }
     }
 }

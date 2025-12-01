@@ -25,6 +25,7 @@ import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import com.cinema.hub.backend.util.TimeProvider;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -34,6 +35,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
+import com.cinema.hub.backend.web.view.SeatSelectionShowtimeView;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -148,7 +150,7 @@ public class ShowtimeServiceImpl implements ShowtimeService {
     @Override
     @Transactional(readOnly = true)
     public List<ShowtimeResponse> getUpcomingShowtimesForMovie(int movieId, LocalDate fromDate, LocalDate toDate) {
-        LocalDate start = fromDate != null ? fromDate : LocalDate.now();
+        LocalDate start = fromDate != null ? fromDate : LocalDate.now(TimeProvider.VN_ZONE_ID);
         LocalDate end = toDate != null ? toDate : start.plusDays(6);
         if (end.isBefore(start)) {
             LocalDate temp = start;
@@ -167,7 +169,7 @@ public class ShowtimeServiceImpl implements ShowtimeService {
     @Override
     @Transactional(readOnly = true)
     public List<ShowtimeResponse> getShowtimesByDate(LocalDate date) {
-        LocalDate target = date != null ? date : LocalDate.now();
+        LocalDate target = date != null ? date : LocalDate.now(TimeProvider.VN_ZONE_ID);
         LocalDateTime from = target.atStartOfDay();
         LocalDateTime to = target.plusDays(1).atStartOfDay().minusSeconds(1);
         return showtimeRepository
@@ -300,8 +302,16 @@ public class ShowtimeServiceImpl implements ShowtimeService {
         if (startTime == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Start time is required");
         }
-        if (startTime.isBefore(LocalDateTime.now())) {
+        LocalDateTime now = LocalDateTime.now(TimeProvider.VN_ZONE_ID);
+        if (startTime.isBefore(now)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Giờ bắt đầu phải sau thời điểm hiện tại");
+        }
+        LocalTime localTime = startTime.toLocalTime();
+        LocalTime earliest = LocalTime.of(7, 0);
+        LocalTime latest = LocalTime.of(19, 0);
+        if (localTime.isBefore(earliest) || localTime.isAfter(latest)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Giờ bắt đầu phải nằm trong khoảng từ 07:00 đến 19:00.");
         }
     }
 
@@ -312,7 +322,7 @@ public class ShowtimeServiceImpl implements ShowtimeService {
         boolean conflict = showtimeRepository.existsConflictingShowtime(auditoriumId, start, end, excludeId);
         if (conflict) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Phòng chiếu đã có suất chiếu khác trong khoảng thời gian này.");
+                    "PhÃ²ng chiáº¿u Ä‘Ã£ cÃ³ suáº¥t chiáº¿u khÃ¡c trong khoáº£ng thá»i gian nÃ y.");
         }
     }
 
@@ -346,12 +356,12 @@ public class ShowtimeServiceImpl implements ShowtimeService {
         RepeatMode mode = RepeatMode.from(request.getRepeatMode());
         LocalDate repeatUntil = request.getRepeatUntil() != null ? request.getRepeatUntil() : baseStart.toLocalDate();
         if (repeatUntil.isBefore(baseStart.toLocalDate())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "NgÃ y káº¿t thÃºc pháº£i sau hoáº·c báº±ng ngÃ y báº¯t Ä‘áº§u.");
         }
         List<DayOfWeek> customDays = resolveCustomDays(request.getRepeatDays(), baseStart.getDayOfWeek());
         List<LocalDateTime> startTimes = expandStartTimes(baseStart, repeatUntil, mode, customDays);
         if (startTimes.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy ngày phù hợp cho tùy chọn đã chọn.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "KhÃ´ng tÃ¬m tháº¥y ngÃ y phÃ¹ há»£p cho tÃ¹y chá»n Ä‘Ã£ chá»n.");
         }
         List<ScheduleSlot> slots = new ArrayList<>();
         for (LocalDateTime slotStart : startTimes) {
@@ -389,7 +399,7 @@ public class ShowtimeServiceImpl implements ShowtimeService {
     }
 
     private BigDecimal determineBasePrice(LocalDateTime startTime) {
-        LocalDateTime effectiveTime = startTime != null ? startTime : LocalDateTime.now();
+        LocalDateTime effectiveTime = startTime != null ? startTime : LocalDateTime.now(TimeProvider.VN_ZONE_ID);
         boolean weekend = isWeekend(effectiveTime.getDayOfWeek());
         int hour = effectiveTime.getHour();
         if (hour < 12) {
@@ -402,6 +412,14 @@ public class ShowtimeServiceImpl implements ShowtimeService {
             return weekend ? WEEKEND_EVENING_PRICE : WEEKDAY_EVENING_PRICE;
         }
         return weekend ? WEEKEND_LATE_PRICE : WEEKDAY_LATE_PRICE;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public SeatSelectionShowtimeView getSeatSelectionDetails(int showtimeId) {
+        Showtime showtime = showtimeRepository.findByIdWithDetails(showtimeId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Showtime not found"));
+        return SeatSelectionShowtimeView.fromEntity(showtime);
     }
 
     private boolean isWeekend(DayOfWeek dayOfWeek) {
@@ -454,3 +472,4 @@ public class ShowtimeServiceImpl implements ShowtimeService {
     private record ScheduleSlot(LocalDateTime start, LocalDateTime end) {
     }
 }
+

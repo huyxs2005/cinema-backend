@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Vé điện tử Cinema HUB</title>
+    <style>
+        body {font-family: 'Segoe UI', Arial, sans-serif; background:#f4f4f7; color:#0f172a; padding:24px;}
+        .card {max-width:700px;margin:0 auto;background:#fff;border-radius:18px;box-shadow:0 25px 60px rgba(15,23,42,.18);overflow:hidden;}
+        .header {padding:32px;background:linear-gradient(135deg,#0f172a,#1f2937);color:#fff;display:flex;justify-content:space-between;align-items:center;}
+        .header img {height:48px;}
+        .content {padding:32px;}
+        .ticket-grid {display:flex;flex-wrap:wrap;gap:18px;margin-top:20px;}
+        .ticket-card {flex:1 1 220px;border:1px solid #e2e8f0;border-radius:16px;padding:16px;text-align:center;}
+        .seat-chip {display:inline-flex;padding:6px 14px;border-radius:999px;background:#eef2ff;color:#3730a3;margin:4px;}
+        table {width:100%;border-collapse:collapse;margin-top:16px;}
+        th {text-align:left;background:#f1f5f9;color:#475569;font-size:13px;padding:10px;}
+        td {padding:12px;border-bottom:1px solid #f1f5f9;font-size:14px;}
+        .footer {padding:20px 32px;background:#f8fafc;color:#475569;font-size:13px;border-top:1px solid #e2e8f0;}
+        .btn {display:inline-block;margin-top:16px;padding:12px 20px;border-radius:999px;background:#2563eb;color:#fff;text-decoration:none;}
+    </style>
+</head>
+<body>
+<div class="card">
+    <div class="header">
+        <div>
+            <p style="margin:0;font-size:14px;opacity:.8;">Cinema HUB</p>
+            <h1 style="margin:4px 0 0;">Vé điện tử sẵn sàng</h1>
+            <p style="margin:4px 0 0;font-size:14px;" th:text="'Booking Code: ' + ${booking.bookingCode}"></p>
+        </div>
+        <img src="https://storage.googleapis.com/cinema-hub-assets/logo-light.png" alt="Cinema HUB"/>
+    </div>
+    <div class="content">
+        <p>Xin chào <strong th:text="${booking.user != null ? booking.user.fullName : 'khách hàng'}">Khách hàng</strong>,</p>
+        <p>Vé của bạn cho phim <strong th:text="${booking.showtime.movie.title}"></strong> vào lúc
+            <strong th:text="${#temporals.format(showtimeStart, 'HH:mm dd/MM/yyyy')}"></strong> đã sẵn sàng.
+            Vui lòng xuất trình mã QR dưới đây khi check-in.</p>
+
+        <p>
+            Rạp: <strong th:text="${cinema.name}"></strong> · Phòng <strong th:text="${auditorium.name}"></strong>
+        </p>
+
+        <div>
+            <span class="seat-chip" th:each="seat : ${booking.bookingSeats}"
+                  th:text="${seat.showtimeSeat.seat.rowLabel + seat.showtimeSeat.seat.seatNumber}"></span>
+        </div>
+
+        <table>
+            <thead>
+            <tr><th>Ghế</th><th>Loại</th><th>Giá</th></tr>
+            </thead>
+            <tbody>
+            <tr th:each="seat : ${booking.bookingSeats}">
+                <td th:text="${seat.showtimeSeat.seat.rowLabel + seat.showtimeSeat.seat.seatNumber}"></td>
+                <td th:text="${seat.showtimeSeat.seat.seatType.name}"></td>
+                <td th:text="${#numbers.formatDecimal(seat.finalPrice, 0, 'COMMA', 0, 'POINT')} + ' đ'"></td>
+            </tr>
+            </tbody>
+        </table>
+
+        <div class="ticket-grid">
+            <div class="ticket-card" th:each="ticket : ${tickets}">
+                <p th:text="${ticket.ticketCode}" style="font-weight:600;"></p>
+                <p th:text="'Ghế ' + ${ticket.bookingSeat.showtimeSeat.seat.rowLabel + ticket.bookingSeat.showtimeSeat.seat.seatNumber}"></p>
+                <p th:text="'Loại: ' + ${ticket.bookingSeat.showtimeSeat.seat.seatType.name}"></p>
+                <img th:src="'data:image/png;base64,' + ${ticket.qrCodeData}"
+                     alt="QR" style="width:180px;height:180px;object-fit:contain;"/>
+                <a class="btn" th:href="@{'/api/tickets/view/' + ${ticket.ticketId}}">Xem vé</a>
+            </div>
+        </div>
+    </div>
+    <div class="footer">
+        Cần hỗ trợ? Gọi hotline 1900 1234 hoặc trả lời email này.
+    </div>
+</div>
+</body>
+</html>

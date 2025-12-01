@@ -114,7 +114,7 @@ function renderAuditoriumTable(items) {
         auditoriumTextCompare.compare(a?.name || "", b?.name || "")
     );
     sortedItems.forEach((item, index) => {
-        const totalSeats = calculateTotalSeats(item.numberOfRows, item.numberOfColumns);
+        const totalSeats = calculateTotalSeats(item.numberOfRows, item.numberOfColumns, item.coupleRowCount);
         const toggleLabel = item.active ? "Vô hiệu hóa" : "Kích hoạt";
         const tr = document.createElement("tr");
         tr.innerHTML = `
@@ -245,16 +245,21 @@ async function submitAuditoriumForm(event) {
 }
 
 function buildAuditoriumPayload() {
+    const normalRowInput = document.getElementById("auditoriumNormalRows");
+    const coupleRowInput = document.getElementById("auditoriumCoupleRows");
     return {
         name: document.getElementById("auditoriumName").value.trim(),
         numberOfRows: numberFromInput(document.getElementById("auditoriumRows").value),
         numberOfColumns: numberFromInput(document.getElementById("auditoriumColumns").value),
+        normalRowCount: numberFromInput(normalRowInput?.value),
+        coupleRowCount: numberFromInput(coupleRowInput?.value),
         active: document.getElementById("auditoriumActive").checked
     };
 }
 
 function validateAuditoriumPayload(payload) {
     const errors = [];
+    const rowsValue = payload.numberOfRows ?? 0;
     if (!payload.name) {
         errors.push({ field: "auditoriumName", message: "Vui lòng nhập tên phòng chiếu *" });
     }
@@ -268,11 +273,32 @@ function validateAuditoriumPayload(payload) {
     } else if (payload.numberOfColumns > AUD_COLUMNS_MAX) {
         errors.push({ field: "auditoriumColumns", message: `Số ghế mỗi hàng tối đa ${AUD_COLUMNS_MAX} *` });
     }
+    const normalRows = Number.isFinite(payload.normalRowCount) ? payload.normalRowCount : null;
+    const coupleRows = Number.isFinite(payload.coupleRowCount) ? payload.coupleRowCount : null;
+    if (normalRows === null) {
+        errors.push({ field: "auditoriumNormalRows", message: "Phải nhập số hàng ghế thường" });
+    } else if (normalRows < 0) {
+        errors.push({ field: "auditoriumNormalRows", message: "Số hàng ghế thường không hợp lệ" });
+    } else if (normalRows > rowsValue) {
+        errors.push({ field: "auditoriumNormalRows", message: "Hàng ghế thường không được vượt tổng số hàng" });
+    }
+    if (coupleRows === null) {
+        errors.push({ field: "auditoriumCoupleRows", message: "Phải nhập số hàng ghế đôi" });
+    } else if (coupleRows < 0) {
+        errors.push({ field: "auditoriumCoupleRows", message: "Số hàng ghế đôi không hợp lệ" });
+    } else if (coupleRows > rowsValue) {
+        errors.push({ field: "auditoriumCoupleRows", message: "Hàng ghế đôi không được vượt tổng số hàng" });
+    }
+    if (normalRows != null && coupleRows != null && normalRows + coupleRows > rowsValue) {
+        errors.push({ field: "auditoriumCoupleRows", message: "Hàng ghế thường + đôi vượt tổng số hàng" });
+    }
+    payload.normalRowCount = normalRows ?? 0;
+    payload.coupleRowCount = coupleRows ?? 0;
     return errors;
 }
 
 function clearAuditoriumErrors() {
-    ["auditoriumName", "auditoriumRows", "auditoriumColumns"].forEach((id) => {
+    ["auditoriumName", "auditoriumRows", "auditoriumNormalRows", "auditoriumCoupleRows", "auditoriumColumns"].forEach((id) => {
         document.getElementById(id)?.classList.remove("is-invalid");
         const errorBox = document.getElementById(`${id}Error`);
         if (errorBox) errorBox.textContent = "";
@@ -304,6 +330,8 @@ function resetAuditoriumForm() {
     if (!form) return;
     form.reset();
     document.getElementById("auditoriumId").value = "";
+    document.getElementById("auditoriumNormalRows").value = "";
+    document.getElementById("auditoriumCoupleRows").value = "";
     document.getElementById("auditoriumFormTitle").textContent = "Thêm phòng chiếu";
     document.getElementById("auditoriumFormMessage").textContent = "";
     clearAuditoriumErrors();
@@ -319,6 +347,8 @@ async function editAuditorium(id) {
         document.getElementById("auditoriumName").value = data.name ?? "";
         document.getElementById("auditoriumRows").value = data.numberOfRows ?? "";
         document.getElementById("auditoriumColumns").value = data.numberOfColumns ?? "";
+        document.getElementById("auditoriumNormalRows").value = data.normalRowCount ?? "";
+        document.getElementById("auditoriumCoupleRows").value = data.coupleRowCount ?? "";
         document.getElementById("auditoriumActive").checked = Boolean(data.active);
         const titleText = data.name ? `Chỉnh sửa phòng chiếu - ${data.name}` : "Chỉnh sửa phòng chiếu";
         document.getElementById("auditoriumFormTitle").textContent = titleText;
@@ -416,7 +446,7 @@ function renderAuditoriumStatus(active) {
     return active ? '<span class="badge bg-success">ON</span>' : '<span class="badge bg-secondary">OFF</span>';
 }
 
-function calculateTotalSeats(rows, columns) {
+function calculateTotalSeats(rows, columns, coupleRows = 0) {
     if (rows == null || columns == null) {
         return null;
     }
@@ -426,20 +456,11 @@ function calculateTotalSeats(rows, columns) {
     const totalRows = Number(rows);
     const totalCols = Number(columns);
     let totalSeats = totalRows * totalCols;
-    if (totalCols % 2 !== 0) {
-        totalSeats -= determineCoupleRows(totalRows);
+    const coupleRowCount = Number(coupleRows) || 0;
+    if (coupleRowCount > 0 && totalCols % 2 !== 0) {
+        totalSeats -= coupleRowCount;
     }
     return Math.max(0, totalSeats);
-}
-
-function determineCoupleRows(totalRows) {
-    if (totalRows >= 20) {
-        return 2;
-    }
-    if (totalRows >= 10) {
-        return 1;
-    }
-    return 0;
 }
 
 function numberFromInput(value) {

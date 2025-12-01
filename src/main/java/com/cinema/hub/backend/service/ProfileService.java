@@ -5,12 +5,14 @@ import com.cinema.hub.backend.dto.profile.UpdateProfileRequestDto;
 import com.cinema.hub.backend.dto.profile.UserProfileDto;
 import com.cinema.hub.backend.entity.UserAccount;
 import com.cinema.hub.backend.repository.UserAccountRepository;
+import com.cinema.hub.backend.web.view.BookingHistoryView;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.regex.Pattern;
 
 @Service
@@ -21,6 +23,7 @@ public class ProfileService {
 
     private final UserAccountRepository userAccountRepository;
     private final PasswordEncoder passwordEncoder;
+    private final BookingService bookingService;
 
     public UserProfileDto getProfile(Integer userId) {
         UserAccount user = findUser(userId);
@@ -56,6 +59,11 @@ public class ProfileService {
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         userAccountRepository.save(user);
+    }
+
+    public List<BookingHistoryView> getBookingHistory(Integer userId) {
+        UserAccount user = findUser(userId);
+        return bookingService.getBookingHistory(user);
     }
 
     private UserAccount findUser(Integer userId) {

@@ -4,6 +4,7 @@ import com.cinema.hub.backend.dto.common.PageResponse;
 import com.cinema.hub.backend.dto.showtime.ShowtimeGroupedResponse;
 import com.cinema.hub.backend.dto.showtime.ShowtimeRequest;
 import com.cinema.hub.backend.dto.showtime.ShowtimeResponse;
+import com.cinema.hub.backend.web.view.SeatSelectionShowtimeView;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.data.domain.Pageable;
@@ -38,4 +39,6 @@ public interface ShowtimeService {
                                                LocalDate fromDate,
                                                LocalDate toDate,
                                                String keyword);
+
+    SeatSelectionShowtimeView getSeatSelectionDetails(int showtimeId);
 }

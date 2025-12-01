@@ -8,6 +8,7 @@ const AuthAPI = {
 
 const ProfileAPI = {
     detail: (userId) => `/api/profile/${userId}`,
+    history: (userId) => `/api/profile/${userId}/history`,
     update: (userId) => `/api/profile/${userId}`,
     changePassword: (userId) => `/api/profile/${userId}/change-password`
 };
@@ -19,6 +20,11 @@ const PASSWORD_RULE = /^(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
 const PASSWORD_RULE_MESSAGE = "Mật khẩu phải có ít nhất 8 ký tự, bao gồm số và ký tự đặc biệt";
 const PHONE_RULE = /^\d{10,11}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const StorageKeys = {
+    postLoginRedirect: "cinemaPostLoginRedirect",
+    seatIntent: "cinemaSeatIntent"
+};
+const DEFAULT_REDIRECT_TTL = 5 * 60 * 1000;
 let modalOverlayRef = null;
 const modalMap = {};
 let userMenuInitialized = false;
@@ -48,6 +54,25 @@ function syncAuthenticatedUi() {
     updateAdminMenuVisibility(user);
 }
 
+function setLoginPromptMessage(message) {
+    const promptEl = document.getElementById("loginSeatPrompt");
+    if (!promptEl) {
+        return;
+    }
+    if (message) {
+        promptEl.textContent = message;
+        promptEl.hidden = false;
+        promptEl.classList.remove("error", "success");
+    } else {
+        promptEl.textContent = "";
+        promptEl.hidden = true;
+    }
+}
+
+window.setLoginPromptMessage = setLoginPromptMessage;
+window.loginPromptLocked = false;
+window.postLoginRedirectUrl = null;
+
 function updateUserMenuDisplay(user) {
     const userMenuName = document.getElementById("userMenuName");
     if (userMenuName) {
@@ -73,6 +98,66 @@ function updateAdminMenuVisibility(user) {
 function initializeUserState() {
     syncAuthenticatedUi();
 }
+
+function safeSessionStorage() {
+    try {
+        if (typeof window === "undefined" || !window.sessionStorage) {
+            return null;
+        }
+        return window.sessionStorage;
+    } catch (error) {
+        return null;
+    }
+}
+
+function setPostLoginRedirect(url, options = {}) {
+    const storage = safeSessionStorage();
+    if (!url) {
+        window.postLoginRedirectUrl = null;
+        storage?.removeItem(StorageKeys.postLoginRedirect);
+        return;
+    }
+    const ttl = Math.max(Number(options.ttl) || DEFAULT_REDIRECT_TTL, 1000);
+    const payload = {
+        url,
+        expiresAt: Date.now() + ttl
+    };
+    window.postLoginRedirectUrl = url;
+    try {
+        storage?.setItem(StorageKeys.postLoginRedirect, JSON.stringify(payload));
+    } catch (error) {
+        // ignore storage quotas
+    }
+}
+
+function consumePostLoginRedirect() {
+    const storage = safeSessionStorage();
+    let payload = null;
+    if (storage) {
+        try {
+            const raw = storage.getItem(StorageKeys.postLoginRedirect);
+            if (raw) {
+                payload = JSON.parse(raw);
+                storage.removeItem(StorageKeys.postLoginRedirect);
+            }
+        } catch (error) {
+            storage.removeItem(StorageKeys.postLoginRedirect);
+        }
+    }
+    const storedUrl = payload?.url || null;
+    const expired = payload?.expiresAt && Date.now() > payload.expiresAt;
+    const fallbackUrl = window.postLoginRedirectUrl || null;
+    window.postLoginRedirectUrl = null;
+    if (!expired && storedUrl) {
+        return storedUrl;
+    }
+    if (!expired && fallbackUrl) {
+        return fallbackUrl;
+    }
+    return null;
+}
+
+window.setPostLoginRedirect = setPostLoginRedirect;
 
 function bootAuthScripts() {
     initModals();
@@ -106,7 +191,16 @@ function initModals() {
         return;
     }
 
-    document.getElementById("openLoginModal")?.addEventListener("click", () => showModal("login"));
+    const manualLoginOpen = () => {
+        if (window.loginPromptLocked) {
+            window.loginPromptLocked = false;
+        } else {
+            setLoginPromptMessage();
+        }
+        showModal("login");
+    };
+
+    document.getElementById("openLoginModal")?.addEventListener("click", manualLoginOpen);
     document.getElementById("openRegisterModal")?.addEventListener("click", () => showModal("register"));
 
     modalOverlayRef.addEventListener("mousedown", (event) => {
@@ -126,7 +220,13 @@ function initModals() {
 
     document.querySelectorAll("[data-open-modal]").forEach((btn) => {
         const target = btn.getAttribute("data-open-modal");
-        btn.addEventListener("click", () => showModal(target));
+        btn.addEventListener("click", () => {
+            if (target === "login") {
+                manualLoginOpen();
+            } else {
+                showModal(target);
+            }
+        });
     });
 }
 
@@ -485,10 +585,16 @@ function initializeProfilePage() {
     }
 
     loadProfileData(user);
+    loadTicketHistory(user);
 
     profileTabs.querySelectorAll(".tab-button").forEach((btn) => {
         btn.addEventListener("click", () => switchProfileTab(btn.getAttribute("data-tab-target")));
     });
+
+    const initialTab = new URLSearchParams(window.location.search).get("tab");
+    if (initialTab === "history") {
+        switchProfileTab("profileHistory");
+    }
 
     const profileForm = document.getElementById("profileForm");
     if (profileForm) {
@@ -540,6 +646,13 @@ function switchProfileTab(targetId) {
     document.querySelectorAll(".tab-button").forEach((btn) => {
         btn.classList.toggle("active", btn.getAttribute("data-tab-target") === targetId);
     });
+    const url = new URL(window.location.href);
+    if (targetId === "profileHistory") {
+        url.searchParams.set("tab", "history");
+    } else {
+        url.searchParams.delete("tab");
+    }
+    window.history.replaceState({}, "", url);
 }
 
 function renderTicketHistory(entries) {
@@ -549,8 +662,8 @@ function renderTicketHistory(entries) {
     if (!entries.length) {
         const row = document.createElement("tr");
         const col = document.createElement("td");
-        col.colSpan = 4;
-        col.className = "text-center text-muted";
+        col.colSpan = 5;
+        col.className = "text-center text-light";
         col.textContent = "Chưa có dữ liệu";
         row.appendChild(col);
         tbody.appendChild(row);
@@ -558,13 +671,88 @@ function renderTicketHistory(entries) {
     }
     entries.forEach((item) => {
         const row = document.createElement("tr");
-        ["date", "movie", "tickets", "amount"].forEach((field) => {
+        ["date", "movie", "showtime", "tickets", "amount"].forEach((field) => {
             const cell = document.createElement("td");
             cell.textContent = item[field] ?? "";
             row.appendChild(cell);
         });
         tbody.appendChild(row);
     });
+}
+
+async function loadTicketHistory(user) {
+    const tbody = document.getElementById("ticketHistoryBody");
+    if (!tbody) {
+        return;
+    }
+    try {
+        const history = await apiRequest(ProfileAPI.history(user.userId));
+        const formatted = history.map((item) => ({
+            date: formatHistoryDate(item.purchasedAt || item.showtime),
+            movie: [item.movieTitle, item.theaterName].filter(Boolean).join(" • "),
+            showtime: formatShowtime(item.showtime),
+            tickets: formatTicketCount(item.ticketCount),
+            amount: formatCurrency(item.total)
+        }));
+        renderTicketHistory(formatted);
+    } catch (error) {
+        console.error("Load ticket history failed", error);
+        renderTicketHistory([]);
+        showProfileToast(error.message || "Kh?ng th? t?i l?ch s? mua v?", "error");
+    }
+}
+
+function formatHistoryDate(value) {
+    if (!value) {
+        return "";
+    }
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+        return value;
+    }
+    return new Intl.DateTimeFormat("vi-VN", {
+        dateStyle: "medium",
+        timeStyle: "short"
+    }).format(parsed);
+}
+
+function formatShowtime(value) {
+    if (!value) {
+        return "";
+    }
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+        return value;
+    }
+    return new Intl.DateTimeFormat("vi-VN", {
+        weekday: "short",
+        hour: "2-digit",
+        minute: "2-digit"
+    }).format(parsed);
+}
+
+function formatTicketCount(count) {
+    if (!count || count <= 0) {
+        return "0 vé";
+    }
+    return `${count} vé`;
+}
+
+function formatCurrency(value) {
+    const numeric = Number(value ?? 0);
+    if (Number.isNaN(numeric)) {
+        return value ?? "";
+    }
+    const options = {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    };
+    try {
+        const formatted = new Intl.NumberFormat("vi-VN", options).format(numeric);
+        return `${formatted} đ`;
+    } catch (error) {
+        return `${numeric.toLocaleString("vi-VN")} đ`;
+    }
 }
 
 async function loadProfileData(user) {
@@ -759,6 +947,11 @@ function completeAuthSession(data) {
         phone: data.phone || ""
     });
     hideModals();
+    const pendingRedirect = consumePostLoginRedirect();
+    if (pendingRedirect) {
+        window.location.href = pendingRedirect;
+        return;
+    }
     redirectByRole(data.role);
 }
 

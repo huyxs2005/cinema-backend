@@ -42,7 +42,14 @@ public class SecurityConfig {
         http.csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/admin/**", "/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/payment/webhook").permitAll()
                         .requestMatchers("/api/profile/**").authenticated()
+                        .requestMatchers("/movies/seat-fragment/**",
+                                "/movies/tickets/**",
+                                "/checkout/**",
+                                "/api/showtimes/*/holds/**",
+                                "/api/payment/**",
+                                "/api/bookings/**").authenticated()
                         .anyRequest().permitAll()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))

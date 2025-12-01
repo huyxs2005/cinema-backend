@@ -10,8 +10,8 @@ import com.cinema.hub.backend.entity.UserAccount;
 import com.cinema.hub.backend.repository.PasswordResetTokenRepository;
 import com.cinema.hub.backend.repository.RoleRepository;
 import com.cinema.hub.backend.repository.UserAccountRepository;
+import com.cinema.hub.backend.util.TimeProvider;
 import java.time.OffsetDateTime;
-import java.time.ZoneId;
 import java.util.Optional;
 import java.util.Random;
 import java.util.regex.Pattern;
@@ -30,7 +30,6 @@ public class AuthService {
     private static final String DEFAULT_ROLE = "User";
     private static final int RESET_TOKEN_EXPIRY_MINUTES = 15;
     private static final Pattern PHONE_PATTERN = Pattern.compile("^\\d{10,11}$");
-    private static final ZoneId APP_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
     private final UserAccountRepository userAccountRepository;
     private final RoleRepository roleRepository;
@@ -67,7 +66,7 @@ public class AuthService {
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .role(role)
                 .active(true)
-                .createdAt(OffsetDateTime.now(APP_ZONE))
+                .createdAt(TimeProvider.now())
                 .build();
 
         UserAccount saved = userAccountRepository.save(user);
@@ -84,7 +83,7 @@ public class AuthService {
         PasswordResetToken resetToken = PasswordResetToken.builder()
                 .user(user)
                 .token(token)
-                .expiresAt(OffsetDateTime.now(APP_ZONE).plusMinutes(RESET_TOKEN_EXPIRY_MINUTES))
+                .expiresAt(TimeProvider.now().plusMinutes(RESET_TOKEN_EXPIRY_MINUTES))
                 .build();
 
         PasswordResetToken saved = passwordResetTokenRepository.save(resetToken);
@@ -105,13 +104,13 @@ public class AuthService {
                 .findTopByUserAndTokenAndUsedAtIsNullAndExpiresAtAfter(
                         user,
                         request.getToken(),
-                        OffsetDateTime.now(APP_ZONE))
+                        TimeProvider.now())
                 .orElseThrow(() -> new IllegalArgumentException("Mã nhập không hợp lệ"));
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         userAccountRepository.save(user);
 
-        token.setUsedAt(OffsetDateTime.now(APP_ZONE));
+        token.setUsedAt(TimeProvider.now());
         passwordResetTokenRepository.save(token);
     }
 
@@ -145,14 +144,14 @@ public class AuthService {
                 .findTopByUserAndTokenAndUsedAtIsNullAndExpiresAtAfter(
                         user,
                         request.getToken(),
-                        OffsetDateTime.now(APP_ZONE))
+                        TimeProvider.now())
                 .orElseThrow(() -> new IllegalArgumentException("Mã nhập không hợp lệ"));
     }
 
     public UserAccount updateLastLogin(Integer userId) {
         return userAccountRepository.findById(userId)
                 .map(user -> {
-                    user.setLastLoginAt(OffsetDateTime.now(APP_ZONE));
+                    user.setLastLoginAt(TimeProvider.now());
                     return userAccountRepository.save(user);
                 })
                 .orElse(null);

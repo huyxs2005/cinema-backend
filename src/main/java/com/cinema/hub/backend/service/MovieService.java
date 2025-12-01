@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import com.cinema.hub.backend.util.TimeProvider;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -26,7 +27,7 @@ public class MovieService {
     private final MovieRepository movieRepository;
 
     public List<MovieDetailDto> getNowShowingMovies() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(TimeProvider.VN_ZONE_ID);
         return movieRepository.findAllWithGenres()
                 .stream()
                 .filter(movie -> isNowShowing(movie, today))
@@ -35,7 +36,7 @@ public class MovieService {
     }
 
     public List<MovieDetailDto> getComingSoonMovies() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(TimeProvider.VN_ZONE_ID);
         return movieRepository.findAllWithGenres()
                 .stream()
                 .filter(movie -> isComingSoon(movie, today))
@@ -50,7 +51,7 @@ public class MovieService {
     }
 
     public List<MovieOptionDto> getMovieOptions() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(TimeProvider.VN_ZONE_ID);
         return movieRepository.findAll().stream()
                 .map(movie -> new MovieStatusPair(movie, determineStatus(movie, today)))
                 .filter(pair -> pair.status().isPresent())

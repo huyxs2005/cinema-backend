@@ -1,4 +1,10 @@
 const SHOWTIME_RANGE_DAYS = 7;
+const SEAT_INTENT_STORAGE_KEY = "cinemaSeatIntent";
+const SEAT_INTENT_TTL = 5 * 60 * 1000;
+const seatSelectionState = {
+    pendingShowtimeId: null,
+    pendingMovieId: null
+};
 
 document.addEventListener("DOMContentLoaded", () => {
     const tabsContainer = document.getElementById("showtimeDateTabs");
@@ -119,6 +125,63 @@ function renderMovieCards(container, movies, showtimesMap, dateKey) {
         return;
     }
     container.innerHTML = cards.join("");
+    bindShowtimeButtons(container);
+}
+
+function bindShowtimeButtons(container) {
+    if (!container) {
+        return;
+    }
+    const buttons = container.querySelectorAll(".showtime-slot");
+    buttons.forEach((button) => {
+        if (button.dataset.bound === "true") {
+            return;
+        }
+        button.dataset.bound = "true";
+        button.addEventListener("click", () => handleShowtimeSelection(button));
+    });
+}
+
+function handleShowtimeSelection(button) {
+    const showtimeId = button.dataset.showtimeId;
+    const movieId = button.dataset.movieId;
+    if (!showtimeId || !movieId) {
+        return;
+    }
+    const detailUrl = `/movies/${movieId}?showtimeId=${showtimeId}`;
+    rememberSeatIntent(movieId, showtimeId);
+    const currentUser = typeof getCurrentUser === "function" ? getCurrentUser() : window.CURRENT_USER;
+    if (currentUser) {
+        window.location.href = detailUrl;
+        return;
+    }
+    if (typeof window.setPostLoginRedirect === "function") {
+        window.setPostLoginRedirect(detailUrl, { ttl: SEAT_INTENT_TTL });
+    }
+    if (typeof window.setLoginPromptMessage === "function") {
+        window.setLoginPromptMessage("Bạn cần phải đăng nhập để có thể đặt vé");
+        window.loginPromptLocked = true;
+    }
+    document.getElementById("openLoginModal")?.click();
+}
+
+function rememberSeatIntent(movieId, showtimeId) {
+    seatSelectionState.pendingShowtimeId = String(showtimeId);
+    seatSelectionState.pendingMovieId = String(movieId);
+    try {
+        const storage = window.sessionStorage;
+        if (!storage) {
+            return;
+        }
+        const payload = {
+            movieId: String(movieId),
+            showtimeId: String(showtimeId),
+            expiresAt: Date.now() + SEAT_INTENT_TTL
+        };
+        storage.setItem(SEAT_INTENT_STORAGE_KEY, JSON.stringify(payload));
+    } catch (error) {
+        // ignore storage issues
+    }
 }
 
 function buildMovieCard(movie, showtimes) {
@@ -132,7 +195,7 @@ function buildMovieCard(movie, showtimes) {
     const showtimeButtons = showtimes
         .map((showtime) => {
             const timeLabel = formatTime(new Date(showtime.startTime));
-            return `<button type="button" class="showtime-slot showtime-slot-compact"><span class="showtime-time">${timeLabel}</span></button>`;
+            return `<button type="button" class="showtime-slot showtime-slot-compact" data-showtime-id="${showtime.id}" data-movie-id="${movie.id}"><span class="showtime-time">${timeLabel}</span></button>`;
         })
         .join("");
     const metaSegments = [];

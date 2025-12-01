@@ -31,9 +31,34 @@
                             <div class="text-danger small mt-1" id="showtimeAuditoriumError"></div>
                         </div>
                         <div class="mb-3">
-                            <label for="showtimeStartTime" class="form-label">Giờ bắt đầu <span class="text-danger">*</span></label>
-                            <input type="datetime-local" id="showtimeStartTime" class="form-control" required>
-                            <div class="text-danger small mt-1" id="showtimeStartTimeError"></div>
+                            <div class="showtime-datetime-wrapper">
+                                <div class="row g-3 align-items-end">
+                                    <div class="col-sm-6">
+                                        <label for="showtimeStartDate" class="form-label">Ngày bắt đầu <span class="text-danger">*</span></label>
+                                        <input type="date" id="showtimeStartDate" class="form-control" required>
+                                        <div class="text-danger small mt-1" id="showtimeStartDateError"></div>
+                                    </div>
+                                    <div class="col-sm-6">
+                                        <label for="showtimeStartTime" class="form-label">Giờ bắt đầu <span class="text-danger">*</span></label>
+                                        <input type="time" id="showtimeStartTime" class="form-control" min="08:00" max="22:00" step="900" required>
+                                        <div class="text-danger small mt-1" id="showtimeStartTimeError"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label mb-2">Khung giờ gợi ý</label>
+                            <div class="showtime-time-suggestions" id="showtimeTimeSuggestions">
+                                <button type="button" class="showtime-time-chip" data-time-suggestion="08:00">08:00</button>
+                                <button type="button" class="showtime-time-chip" data-time-suggestion="09:30">09:30</button>
+                                <button type="button" class="showtime-time-chip" data-time-suggestion="11:00">11:00</button>
+                                <button type="button" class="showtime-time-chip" data-time-suggestion="13:30">13:30</button>
+                                <button type="button" class="showtime-time-chip" data-time-suggestion="16:00">16:00</button>
+                                <button type="button" class="showtime-time-chip" data-time-suggestion="18:30">18:30</button>
+                                <button type="button" class="showtime-time-chip" data-time-suggestion="21:00">21:00</button>
+                                <button type="button" class="showtime-time-chip" data-time-suggestion="22:00">22:00</button>
+                            </div>
+                            <small class="text-muted">Nhấn một chip để tự động điền giờ bắt đầu hoặc nhập tay nếu cần.</small>
                         </div>
                         <div class="mb-3">
                             <label class="form-label d-block">Hiển thị</label>

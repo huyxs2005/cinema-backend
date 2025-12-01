@@ -62,6 +62,17 @@
         clearStoredHold();
     };
 
+    const releaseUserHolds = async () => {
+        try {
+            await fetch('/api/showtimes/holds/release', {
+                method: 'POST',
+                credentials: 'include'
+            });
+        } catch (error) {
+            /* noop */
+        }
+    };
+
     const formatCurrency = (value) => {
         try {
             return new Intl.NumberFormat('vi-VN', {
@@ -102,6 +113,15 @@
         const loginTrigger = document.querySelector('[data-open-modal="login"]');
 
         const currentUser = (typeof getCurrentUser === 'function' ? getCurrentUser() : window.CURRENT_USER) || null;
+        const currentUserId = currentUser
+            ? Number(
+                currentUser.id ??
+                currentUser.userId ??
+                currentUser.userID ??
+                currentUser.user_id ??
+                currentUser.userID
+            )
+            : null;
         const selection = new Map();
         const maxSelection = Number(seatLayout.dataset.maxSelection || '0');
         const seatMapEndpoint = seatLayout.dataset.seatMapEndpoint || null;
@@ -169,13 +189,19 @@
             button.dataset.seatType = seatType;
         };
 
-        const applySeatStatus = (button, status, selectable) => {
+        const applySeatStatus = (button, status, selectable, holdOwnerId = null) => {
             const seatId = button.dataset.seatId;
             const normalizedStatus = (status || 'DISABLED').toUpperCase();
             const isUserSelection = seatId && selection.has(seatId);
-            const computedStatus = isUserSelection && normalizedStatus === 'HELD'
+            const ownsHold = Boolean(
+                holdOwnerId &&
+                currentUserId != null &&
+                Number(holdOwnerId) === Number(currentUserId)
+            );
+            const computedStatus = (isUserSelection || ownsHold) && normalizedStatus === 'HELD'
                 ? 'AVAILABLE'
                 : normalizedStatus;
+            button.dataset.seatStatus = computedStatus;
             statusClasses.forEach((cls) => button.classList.remove(cls));
             button.classList.add(`seat--${computedStatus.toLowerCase()}`);
             const shouldShowPoster = posterUrl && (computedStatus === 'SOLD' || computedStatus === 'HELD');
@@ -186,7 +212,12 @@
                 button.classList.remove('seat--with-poster');
                 button.style.backgroundImage = '';
             }
-            const isSelectable = (selectable && normalizedStatus === 'AVAILABLE') || isUserSelection;
+            if (holdOwnerId) {
+                button.dataset.holdUser = holdOwnerId;
+            } else {
+                delete button.dataset.holdUser;
+            }
+            const isSelectable = (selectable && normalizedStatus === 'AVAILABLE') || isUserSelection || ownsHold;
             button.toggleAttribute('disabled', !isSelectable);
             if (!isUserSelection && !isSelectable && seatId && selection.has(seatId)) {
                 selection.delete(seatId);
@@ -206,7 +237,12 @@
                             return;
                         }
                         const status = (seat.status || 'DISABLED').toUpperCase();
-                        applySeatStatus(button, status, seat.selectable);
+                        if (seat.holdUserId != null) {
+                            button.dataset.holdUser = seat.holdUserId;
+                        } else {
+                            delete button.dataset.holdUser;
+                        }
+                        applySeatStatus(button, status, seat.selectable, seat.holdUserId ?? null);
                         applySeatTypeClass(button, normalizeSeatType(seat.seatType));
                         if (seat.coupleGroupId) {
                             button.dataset.coupleGroup = seat.coupleGroupId;
@@ -554,6 +590,12 @@
                 if (button.classList.contains('is-selected')) {
                     selectSeat(button, { skipLimitCheck: true, silent: true });
                 }
+                const initialStatus = button.dataset.seatStatus || null;
+                const initialSelectable = !button.hasAttribute('disabled');
+                const holdOwner = button.dataset.holdUser || null;
+                if (initialStatus) {
+                    applySeatStatus(button, initialStatus, initialSelectable, holdOwner);
+                }
                 button.addEventListener('click', handleSeatClick);
             });
             updateSelectionUI();
@@ -588,6 +630,7 @@
     (async () => {
         try {
             await releaseStoredHold();
+            await releaseUserHolds();
         } catch (error) {
             // ignore
         }

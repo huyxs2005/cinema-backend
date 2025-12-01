@@ -35,6 +35,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.text.Normalizer;
 import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -76,7 +77,7 @@ public class PaymentService {
         bookingRepository.save(booking);
 
         long orderCode = generateOrderCode();
-        String transferContent = buildTransferContent(orderCode);
+        String transferContent = buildTransferContent(booking, orderCode);
         PayOSPaymentRequest payOSRequest = PayOSPaymentRequest.builder()
                 .orderCode(orderCode)
                 .amount(amount.longValueExact())
@@ -238,7 +239,7 @@ public class PaymentService {
             }
         }
 
-        String expectedContent = buildTransferContent(orderCode);
+        String expectedContent = buildTransferContent(booking, orderCode);
         if (StringUtils.hasText(data.getDescription())) {
             String description = data.getDescription().trim();
             String orderCodeStr = String.valueOf(orderCode);
@@ -329,8 +330,31 @@ public class PaymentService {
         return Long.parseLong(String.valueOf(timestamp).substring(4) + random);
     }
 
-    private String buildTransferContent(long orderCode) {
-        return "VE-" + orderCode;
+    private String buildTransferContent(Booking booking, long orderCode) {
+        return "HUB [VE-" + orderCode + "]";
+    }
+
+    private String extractBookingName(Booking booking) {
+        if (booking == null) {
+            return null;
+        }
+        if (booking.getUser() != null && StringUtils.hasText(booking.getUser().getFullName())) {
+            return booking.getUser().getFullName();
+        }
+        if (booking.getCreatedByStaff() != null && StringUtils.hasText(booking.getCreatedByStaff().getFullName())) {
+            return booking.getCreatedByStaff().getFullName();
+        }
+        return booking.getBookingCode();
+    }
+
+    private String normalizeName(String name) {
+        if (!StringUtils.hasText(name)) {
+            return null;
+        }
+        String normalized = Normalizer.normalize(name, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "");
+        normalized = normalized.replaceAll("[^A-Za-z0-9 ]", "").trim();
+        return normalized.replaceAll("\\s{2,}", " ");
     }
 
     private String buildReturnUrl(Booking booking) {

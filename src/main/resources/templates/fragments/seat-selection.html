@@ -51,12 +51,14 @@
                                 role="gridcell"
                                 th:each="seat : ${row.seats}"
                                 th:classappend="${' seat--' + seat.status.toLowerCase() + ' seat--type-' + #strings.toLowerCase(seat.type != null ? seat.type : 'standard')}"
-                                th:attr="data-seat-id=${seat.seatId},
+                                 th:attr="data-seat-id=${seat.seatId},
                                          data-seat-label=${seat.label},
                                          data-seat-row=${row.label},
                                          data-seat-type=${seat.type != null ? seat.type : 'Standard'},
                                          data-price=${seat.price != null ? seat.price : 0},
-                                         data-couple-group=${seat.coupleGroupId != null ? seat.coupleGroupId : ''}"
+                                         data-couple-group=${seat.coupleGroupId != null ? seat.coupleGroupId : ''},
+                                         data-hold-user=${seat.holdUserId != null ? seat.holdUserId : ''},
+                                         data-seat-status=${seat.status}"
                                 th:disabled="${!seat.selectable}"
                                 th:text="${seat.label}">
                             1

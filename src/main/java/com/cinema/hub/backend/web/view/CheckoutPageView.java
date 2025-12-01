@@ -12,6 +12,8 @@ public class CheckoutPageView {
 
     private final String holdToken;
     private final OffsetDateTime expiresAt;
+    private final Integer bookingId;
+    private final String bookingCode;
     private final SeatSelectionShowtimeView showtime;
     private final List<SeatSelectionItemView> seats;
     private final List<Integer> seatIds;

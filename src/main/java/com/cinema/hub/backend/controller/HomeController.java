@@ -52,4 +52,9 @@ public class HomeController {
         return "showtimes";
     }
 
+    @GetMapping("/faq")
+    public String faqPage() {
+        return "faq";
+    }
+
 }

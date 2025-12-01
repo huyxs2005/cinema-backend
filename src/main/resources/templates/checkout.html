@@ -8,17 +8,20 @@
     <link rel="stylesheet" th:href="@{/styles.css}">
 </head>
 <body>
-<th:block th:replace="fragments/header :: main"></th:block>
+<th:block th:replace="~{fragments/header :: main}"></th:block>
 <main class="content-shell checkout-page">
     <div class="content-container">
         <section th:if="${checkout != null}"
                  id="checkoutRoot"
                  class="checkout-grid"
                  th:attr="data-hold-token=${checkout?.holdToken},
+                          data-booking-id=${checkout?.bookingId},
+                          data-booking-code=${checkout?.bookingCode},
                           data-showtime-id=${checkout?.showtime?.id},
                           data-user-email=${currentUserEmail},
                           data-expires-at=${checkout?.expiresAt},
-                          data-movie-id=${checkout?.showtime?.movieId}">
+                          data-movie-id=${checkout?.showtime?.movieId}"
+                 th:data-seat-ids-json="|[[${checkout?.seatIds}]]|">
             <div class="checkout-summary-card">
                 <p class="eyebrow">Bước 1</p>
                 <h1>Kiểm tra thông tin vé</h1>
@@ -96,7 +99,7 @@
         </section>
     </div>
 </main>
-<th:block th:replace="fragments/footer :: main"></th:block>
+<th:block th:replace="~{fragments/footer :: main}"></th:block>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script th:src="@{/auth.js}"></script>
 <script th:src="@{/checkout-page.js}"></script>

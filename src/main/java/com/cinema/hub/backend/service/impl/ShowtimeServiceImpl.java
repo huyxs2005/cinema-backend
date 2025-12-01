@@ -52,14 +52,14 @@ public class ShowtimeServiceImpl implements ShowtimeService {
 
     private static final String DEFAULT_SEAT_STATUS = "Available";
     private static final int DEFAULT_CLEANUP_MINUTES = 15;
-    private static final BigDecimal WEEKDAY_MORNING_PRICE = new BigDecimal("55000");
-    private static final BigDecimal WEEKDAY_AFTERNOON_PRICE = new BigDecimal("70000");
-    private static final BigDecimal WEEKDAY_EVENING_PRICE = new BigDecimal("80000");
-    private static final BigDecimal WEEKDAY_LATE_PRICE = new BigDecimal("65000");
-    private static final BigDecimal WEEKEND_MORNING_PRICE = new BigDecimal("65000");
-    private static final BigDecimal WEEKEND_AFTERNOON_PRICE = new BigDecimal("75000");
-    private static final BigDecimal WEEKEND_EVENING_PRICE = new BigDecimal("90000");
-    private static final BigDecimal WEEKEND_LATE_PRICE = new BigDecimal("80000");
+    private static final BigDecimal WEEKDAY_MORNING_PRICE = new BigDecimal("2000");
+    private static final BigDecimal WEEKDAY_AFTERNOON_PRICE = new BigDecimal("2000");
+    private static final BigDecimal WEEKDAY_EVENING_PRICE = new BigDecimal("2000");
+    private static final BigDecimal WEEKDAY_LATE_PRICE = new BigDecimal("2000");
+    private static final BigDecimal WEEKEND_MORNING_PRICE = new BigDecimal("2000");
+    private static final BigDecimal WEEKEND_AFTERNOON_PRICE = new BigDecimal("2000");
+    private static final BigDecimal WEEKEND_EVENING_PRICE = new BigDecimal("2000");
+    private static final BigDecimal WEEKEND_LATE_PRICE = new BigDecimal("2000");
     private static final DateTimeFormatter TIME_LABEL_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
     private static final DateTimeFormatter DATE_LABEL_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
@@ -307,11 +307,11 @@ public class ShowtimeServiceImpl implements ShowtimeService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Giờ bắt đầu phải sau thời điểm hiện tại");
         }
         LocalTime localTime = startTime.toLocalTime();
-        LocalTime earliest = LocalTime.of(7, 0);
-        LocalTime latest = LocalTime.of(19, 0);
+        LocalTime earliest = LocalTime.of(8, 0);
+        LocalTime latest = LocalTime.of(22, 0);
         if (localTime.isBefore(earliest) || localTime.isAfter(latest)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Giờ bắt đầu phải nằm trong khoảng từ 07:00 đến 19:00.");
+                    "Giờ bắt đầu phải nằm trong khoảng từ 08:00 đến 22:00.");
         }
     }
 

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="staff/staff-layout :: layout('Suất chiếu hôm nay', ~{::body})">
+<body>
+<section class="staff-showtimes-page" id="staffShowtimesRoot"
+         th:attr="data-showtimes-endpoint=@{/api/staff/showtimes},
+                  data-booking-base=@{/staff/counter-booking},
+                  data-default-date=${#temporals.format(#dates.createNow(), 'yyyy-MM-dd')}">
+    <section class="staff-hero">
+        <div>
+            <p class="staff-eyebrow">Quản lý suất chiếu</p>
+            <h1>Suất chiếu trong ngày</h1>
+            <p>Theo dõi tình trạng ghế, công suất phòng và chuyển nhanh tới đặt vé.</p>
+        </div>
+        <div class="staff-stats">
+            <div class="stat-chip">
+                <span>Tổng suất</span>
+                <strong id="showtimeCount">0</strong>
+            </div>
+            <div class="stat-chip">
+                <span>Số ghế đã bán</span>
+                <strong id="soldSeatCount">0</strong>
+            </div>
+            <div class="stat-chip">
+                <span>% lấp đầy TB</span>
+                <strong id="avgOccupancy">0%</strong>
+            </div>
+        </div>
+    </section>
+
+    <section class="staff-card filters-card">
+        <form id="staffShowtimesFilter">
+            <div class="filters-grid">
+                <label>
+                    Ngày
+                    <input id="filterDate" name="date" type="date">
+                </label>
+                <label>
+                    Từ giờ
+                    <input id="filterStartTime" name="startTime" type="time">
+                </label>
+                <label>
+                    Đến giờ
+                    <input id="filterEndTime" name="endTime" type="time">
+                </label>
+                <label>
+                    Phim
+                    <select id="filterMovie" name="movieId">
+                        <option value="">Tất cả phim</option>
+                    </select>
+                </label>
+                <label>
+                    Phòng chiếu
+                    <select id="filterAuditorium" name="auditoriumId">
+                        <option value="">Tất cả phòng</option>
+                    </select>
+                </label>
+                <label>
+                    Trạng thái
+                    <select id="filterStatus" name="status">
+                        <option value="">Tất cả</option>
+                        <option value="UPCOMING">Chưa chiếu</option>
+                        <option value="RUNNING">Đang chiếu</option>
+                        <option value="FINISHED">Đã kết thúc</option>
+                    </select>
+                </label>
+            </div>
+            <div class="filters-actions">
+                <button class="secondary" type="button" id="resetFilterBtn">Đặt lại</button>
+                <button class="primary" type="submit">Tải danh sách</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="table-card">
+        <div class="table-responsive">
+            <table class="showtimes-table">
+                <thead>
+                <tr>
+                    <th>Phim</th>
+                    <th>Phòng</th>
+                    <th>Giờ chiếu</th>
+                    <th class="text-center">Tổng ghế</th>
+                    <th class="text-center">Ghế đã bán</th>
+                    <th class="text-center">% lấp đầy</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody id="staffShowtimesBody">
+                <tr>
+                    <td colspan="7" class="text-center py-4 text-muted">
+                        Đang tải dữ liệu suất chiếu...
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="text-center mt-3" id="staffShowtimesEmpty" hidden>
+            Không tìm thấy suất chiếu phù hợp.
+        </p>
+    </section>
+</section>
+<script th:src="@{/staff/staff-showtimes.js}"></script>
+</body>
+</html>

@@ -161,6 +161,19 @@ public class BookingService {
         return bookingRepository.save(booking);
     }
 
+    @Transactional(readOnly = true)
+    public Booking getBookingForUser(UserAccount user, Integer bookingId) {
+        if (user == null || bookingId == null) {
+            throw new AccessDeniedException("User context is required.");
+        }
+        Booking booking = bookingRepository.findDetailedById(bookingId)
+                .orElseThrow(() -> new EntityNotFoundException("Booking not found: " + bookingId));
+        if (booking.getUser() == null || !booking.getUser().getId().equals(user.getId())) {
+            throw new AccessDeniedException("You do not have access to this booking.");
+        }
+        return booking;
+    }
+
     private String resolveBookingFormat(Booking booking) {
         return "2D";
     }

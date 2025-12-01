@@ -28,23 +28,6 @@
         }
     };
 
-    const isReloadNavigation = () => {
-        try {
-            if (typeof performance?.getEntriesByType === 'function') {
-                const entries = performance.getEntriesByType('navigation');
-                if (entries && entries.length > 0) {
-                    return entries[0].type === 'reload';
-                }
-            }
-            if (performance?.navigation) {
-                return performance.navigation.type === 1;
-            }
-        } catch (_) {
-            /* noop */
-        }
-        return false;
-    };
-
     const releaseHold = async (showtimeId, holdToken, { keepalive = false } = {}) => {
         if (!showtimeId || !holdToken) {
             return;
@@ -92,12 +75,33 @@
 
         const showtimeId = Number(root.dataset.showtimeId || 0);
         const userEmail = (root.dataset.userEmail || '').trim();
-        const holdExpiresAt = root.dataset.expiresAt || null;
+        let holdExpiresAt = root.dataset.expiresAt || null;
         const movieId = root.dataset.movieId || '';
+        const initialBookingId = root.dataset.bookingId ? Number(root.dataset.bookingId) : null;
+        const initialBookingCode = root.dataset.bookingCode || '';
         let holdToken = root.dataset.holdToken || '';
+        const seatIds = (() => {
+            const parseList = (list) => list
+                .map((id) => parseInt(id, 10))
+                .filter((id) => Number.isFinite(id));
+            try {
+                if (root.dataset.seatIdsJson) {
+                    const parsed = JSON.parse(root.dataset.seatIdsJson);
+                    if (Array.isArray(parsed)) {
+                        return parseList(parsed);
+                    }
+                }
+            } catch (_) {
+                /* noop */
+            }
+            const fallback = (root.dataset.seatIds || '')
+                .split(',')
+                .filter(Boolean);
+            return parseList(fallback);
+        })();
 
-        let activeBookingId = null;
-        let activeBookingCode = null;
+        let activeBookingId = initialBookingId;
+        let activeBookingCode = initialBookingCode;
         let paymentStatusIntervalId = null;
         let holdCountdownIntervalId = null;
         let qrCountdownIntervalId = null;
@@ -199,6 +203,9 @@
                 await cancelPendingBooking();
                 activeBookingId = null;
                 activeBookingCode = null;
+                root.dataset.bookingId = '';
+                root.dataset.bookingCode = '';
+                updateUrlState({ token: holdToken || null, bookingId: null });
             }
             clearPayosError();
             if (paymentStatusIntervalId) {
@@ -264,6 +271,13 @@
             }
             activeBookingId = payload.bookingId ?? null;
             activeBookingCode = payload.bookingCode ?? null;
+            if (activeBookingId) {
+                root.dataset.bookingId = String(activeBookingId);
+                root.dataset.bookingCode = activeBookingCode || '';
+                holdToken = '';
+                root.dataset.holdToken = '';
+                updateUrlState({ token: null, bookingId: activeBookingId });
+            }
             if (payosQrContainer) {
                 payosQrContainer.hidden = false;
             }
@@ -313,8 +327,33 @@
             }, 2000);
         };
 
-        const requestCheckout = async () => {
-            if (!holdToken || !userEmail) {
+        const buildCheckoutPayload = () => {
+            if (activeBookingId) {
+                return { bookingId: activeBookingId, email: userEmail };
+            }
+            if (!holdToken) {
+                return null;
+            }
+            return { holdToken, email: userEmail };
+        };
+
+        const requestCheckout = async ({ retry = true } = {}) => {
+            if (!holdToken && !activeBookingId) {
+                const refreshed = await ensureActiveHold(true);
+                if (!refreshed) {
+                    showPayosError('Phiên giữ ghế đã hết hạn. Vui lòng chọn ghế khác.');
+                    setRegenerateBusy(true);
+                    return;
+                }
+                updateHoldCountdown();
+            }
+            if (!userEmail) {
+                showPayosError('Không xác định được email. Vui lòng đăng nhập lại.');
+                setRegenerateBusy(true);
+                return;
+            }
+            const payload = buildCheckoutPayload();
+            if (!payload) {
                 showPayosError('Phiên giữ ghế đã hết hạn. Vui lòng chọn ghế khác.');
                 setRegenerateBusy(true);
                 return;
@@ -325,7 +364,7 @@
                 const response = await fetch('/api/payment/payos/checkout', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ holdToken, email: userEmail })
+                    body: JSON.stringify(payload)
                 });
                 const data = await response.json().catch(() => null);
                 if (!response.ok || !data) {
@@ -333,13 +372,29 @@
                 }
                 showPayosResult(data);
             } catch (error) {
+                if (retry) {
+                    const refreshed = await ensureActiveHold(true);
+                    if (refreshed) {
+                        updateHoldCountdown();
+                        setRegenerateBusy(false);
+                        requestCheckout({ retry: false });
+                        return;
+                    }
+                }
                 setRegenerateBusy(false);
                 showPayosError(error?.message || 'Không thể tạo VietQR.');
             }
         };
 
         const handleRegenerate = async () => {
-            await resetPayosState();
+            await resetPayosState({ cancelBooking: !activeBookingId });
+            if (!activeBookingId) {
+                const ok = await ensureActiveHold(true);
+                if (!ok) {
+                    return;
+                }
+                updateHoldCountdown();
+            }
             requestCheckout();
         };
 
@@ -363,8 +418,79 @@
             redirectToSeatSelection();
         };
 
-        updateHoldCountdown();
-        requestCheckout();
+        const updateUrlState = ({ token = null, bookingId = null } = {}) => {
+            try {
+                const url = new URL(window.location.href);
+                if (token) {
+                    url.searchParams.set('token', token);
+                } else {
+                    url.searchParams.delete('token');
+                }
+                if (bookingId) {
+                    url.searchParams.set('bookingId', bookingId);
+                } else {
+                    url.searchParams.delete('bookingId');
+                }
+                window.history.replaceState({}, '', url.toString());
+            } catch (_) {
+                /* noop */
+            }
+        };
+
+        const ensureActiveHold = async (force = false) => {
+            if (activeBookingId) {
+                return true;
+            }
+            if (!showtimeId || !seatIds.length) {
+                return Boolean(holdToken);
+            }
+            if (!force && holdToken) {
+                return true;
+            }
+            try {
+                const response = await fetch(`/api/showtimes/${showtimeId}/holds`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        showtimeId,
+                        seatIds,
+                        previousHoldToken: holdToken || null
+                    })
+                });
+                if (response.status === 401) {
+                    showPayosError('Phiên giữ ghế đã hết hạn. Vui lòng chọn ghế khác.');
+                    setRegenerateBusy(true);
+                    return false;
+                }
+                if (!response.ok) {
+                    const body = await response.json().catch(() => ({}));
+                    throw new Error(body?.message || 'Không thể giữ ghế.');
+                }
+                const data = await response.json();
+                holdToken = data.holdToken;
+                holdExpiresAt = data.expiresAt;
+                root.dataset.holdToken = holdToken;
+                root.dataset.expiresAt = holdExpiresAt;
+                updateUrlState({ token: holdToken, bookingId: null });
+                return true;
+            } catch (error) {
+                showPayosError(error?.message || 'Không thể giữ ghế. Vui lòng chọn lại ghế.');
+                setRegenerateBusy(true);
+                return false;
+            }
+        };
+
+        (async () => {
+            if (!holdToken && !activeBookingId) {
+                const ok = await ensureActiveHold(true);
+                if (!ok) {
+                    return;
+                }
+            }
+            updateHoldCountdown();
+            requestCheckout();
+        })();
 
         if (regenerateQrButton) {
             regenerateQrButton.addEventListener('click', handleRegenerate);
@@ -373,21 +499,12 @@
             backButton.addEventListener('click', handleBack);
         }
 
-        const releaseOnUnload = () => {
+        document.getElementById('logoutForm')?.addEventListener('submit', () => {
             if (activeBookingId) {
                 cancelPendingBooking(activeBookingId);
-                return;
+            } else {
+                releaseHold(showtimeId, holdToken, { keepalive: true });
             }
-            if (isReloadNavigation()) {
-                return;
-            }
-            releaseHold(showtimeId, holdToken, { keepalive: true });
-        };
-
-        window.addEventListener('pagehide', releaseOnUnload);
-        window.addEventListener('beforeunload', releaseOnUnload);
-        document.getElementById('logoutForm')?.addEventListener('submit', () => {
-            releaseOnUnload();
         });
     });
 })();

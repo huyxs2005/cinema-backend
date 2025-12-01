@@ -7,6 +7,7 @@ import com.cinema.hub.backend.dto.SeatHoldRequest;
 import com.cinema.hub.backend.dto.SeatHoldResponse;
 import com.cinema.hub.backend.dto.SeatMapItemDto;
 import com.cinema.hub.backend.dto.SeatStatusRow;
+import com.cinema.hub.backend.dto.SeatBookingBlock;
 import com.cinema.hub.backend.entity.Booking;
 import com.cinema.hub.backend.entity.BookingSeat;
 import com.cinema.hub.backend.entity.Seat;
@@ -104,7 +105,50 @@ public class SeatReservationService {
         return CheckoutPageView.builder()
                 .holdToken(firstHold.getHoldToken().toString())
                 .expiresAt(firstHold.getExpiresAt())
+                .bookingId(null)
+                .bookingCode(null)
                 .showtime(showtimeView)
+                .seats(seats)
+                .seatIds(seatIds)
+                .total(total)
+                .seatCount(seats.size())
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public CheckoutPageView getCheckoutViewForBooking(int bookingId, Integer userId) {
+        Booking booking = bookingRepository.findDetailedById(bookingId)
+                .orElseThrow(() -> new EntityNotFoundException("Booking not found: " + bookingId));
+        if (booking.getUser() == null || userId == null || !booking.getUser().getId().equals(userId)) {
+            throw new SeatSelectionException("Phiên thanh toán không thuộc về tài khoản hiện tại.");
+        }
+        List<BookingSeat> bookingSeats = bookingSeatRepository.findDetailedByBooking(bookingId);
+        if (bookingSeats.isEmpty()) {
+            throw new SeatSelectionException("Đơn đặt vé không chứa ghế hợp lệ.");
+        }
+        List<SeatSelectionItemView> seats = bookingSeats.stream()
+                .map(bs -> {
+                    var seat = bs.getShowtimeSeat().getSeat();
+                    String label = seat.getRowLabel() + seat.getSeatNumber();
+                    return SeatSelectionItemView.builder()
+                            .label(label)
+                            .price(bs.getFinalPrice())
+                            .build();
+                })
+                .sorted(Comparator.comparing(SeatSelectionItemView::getLabel))
+                .toList();
+        List<Integer> seatIds = bookingSeats.stream()
+                .map(bs -> bs.getShowtimeSeat().getSeat().getId())
+                .toList();
+        BigDecimal total = booking.getFinalAmount() != null && booking.getFinalAmount().signum() > 0
+                ? booking.getFinalAmount()
+                : booking.getTotalAmount();
+        return CheckoutPageView.builder()
+                .holdToken(null)
+                .expiresAt(booking.getCreatedAt())
+                .bookingId(booking.getId())
+                .bookingCode(booking.getBookingCode())
+                .showtime(SeatSelectionShowtimeView.fromEntity(booking.getShowtime()))
                 .seats(seats)
                 .seatIds(seatIds)
                 .total(total)
@@ -154,6 +198,10 @@ public class SeatReservationService {
 
         List<BookingSeat> bookingSeats = persistBookingSeats(booking, holds);
         persistTickets(booking, bookingSeats, now);
+        releaseHoldToken(token);
+        if (user != null && user.getId() != null) {
+            seatHoldRepository.releaseByUserId(user.getId());
+        }
 
         return new CreateBookingResponse(booking.getId(), booking.getBookingCode());
     }
@@ -230,7 +278,7 @@ public class SeatReservationService {
         bookingSeatRepository.deleteCancelledSeatsByShowtimeSeatIds(showtimeSeatIds);
 
         detectActiveHolds(showtimeSeatIds, now, userId);
-        detectActiveBookings(showtimeSeatIds, now);
+        detectActiveBookings(showtimeSeatIds, userId);
 
         UserAccount user = userId != null ? loadUser(userId) : null;
 
@@ -254,14 +302,32 @@ public class SeatReservationService {
         return holds;
     }
 
-    private void detectActiveBookings(Set<Integer> showtimeSeatIds, OffsetDateTime now) {
-        Set<Integer> occupiedSeats = bookingSeatRepository.findActiveSeatIds(showtimeSeatIds);
-        if (!occupiedSeats.isEmpty()) {
-            List<SeatHold> activeHolds = seatHoldRepository.findActiveHoldsBySeatIds(showtimeSeatIds, now);
-            if (!activeHolds.isEmpty()) {
-                throw new SeatSelectionException("Seat already held");
+    private void detectActiveBookings(Set<Integer> showtimeSeatIds, Integer userId) {
+        if (showtimeSeatIds.isEmpty()) {
+            return;
+        }
+        List<SeatBookingBlock> blockingBookings = bookingSeatRepository.findBlockingBookings(showtimeSeatIds);
+        if (blockingBookings.isEmpty()) {
+            return;
+        }
+        Set<Integer> releasable = new HashSet<>();
+        Set<Integer> blockingSeatIds = new HashSet<>();
+        for (com.cinema.hub.backend.dto.SeatBookingBlock block : blockingBookings) {
+            if (block.paymentStatus() == PaymentStatus.Paid) {
+                blockingSeatIds.add(block.seatId());
+                continue;
             }
-            throw new SeatSelectionException("Seats already sold: " + occupiedSeats);
+            if (userId != null && block.bookingUserId() != null && block.bookingUserId().equals(userId)) {
+                releasable.add(block.bookingId());
+                continue;
+            }
+            blockingSeatIds.add(block.seatId());
+        }
+        if (!releasable.isEmpty()) {
+            cancelUserBookings(releasable);
+        }
+        if (!blockingSeatIds.isEmpty()) {
+            throw new SeatSelectionException("Seat already held");
         }
     }
 
@@ -360,6 +426,7 @@ public class SeatReservationService {
         String status = resolveSeatStatus(row, disabledSeatIds);
         boolean selectable = "AVAILABLE".equals(status);
         String seatLabel = row.rowLabel() + row.seatNumber();
+        Integer ownerId = row.holdUserId() != null ? row.holdUserId() : row.bookingUserId();
         return SeatMapItemDto.builder()
                 .seatId(row.seatId())
                 .rowLabel(row.rowLabel())
@@ -370,7 +437,7 @@ public class SeatReservationService {
                 .price(row.effectivePrice())
                 .status(status)
                 .selectable(selectable)
-                .holdUserId(row.holdUserId())
+                .holdUserId(ownerId)
                 .build();
     }
 
@@ -483,5 +550,28 @@ public class SeatReservationService {
             code = "BK-" + ThreadLocalRandom.current().nextInt(100000, 999999);
         } while (bookingRepository.existsByBookingCode(code));
         return code;
+    }
+
+    private void cancelUserBookings(Set<Integer> bookingIds) {
+        if (bookingIds.isEmpty()) {
+            return;
+        }
+        OffsetDateTime now = TimeProvider.now();
+        for (Integer bookingId : bookingIds) {
+            bookingRepository.findByIdForUpdate(bookingId).ifPresent(booking -> {
+                if (booking.getBookingStatus() == BookingStatus.Cancelled
+                        || booking.getPaymentStatus() == PaymentStatus.Paid) {
+                    return;
+                }
+                booking.setBookingStatus(BookingStatus.Cancelled);
+                booking.setPaymentStatus(PaymentStatus.Unpaid);
+                booking.setCancelledAt(now);
+                bookingRepository.save(booking);
+                ticketRepository.deleteByBookingSeat_Booking_Id(bookingId);
+                bookingSeatRepository.deleteByBookingId(bookingId);
+                log.info("Released pending booking {} for user {}", booking.getBookingCode(),
+                        booking.getUser() != null ? booking.getUser().getId() : null);
+            });
+        }
     }
 }

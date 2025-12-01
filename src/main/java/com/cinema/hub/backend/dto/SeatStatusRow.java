@@ -18,6 +18,7 @@ public record SeatStatusRow(
         OffsetDateTime holdExpiresAt,
         BookingStatus bookingStatus,
         PaymentStatus paymentStatus,
-        Integer holdUserId
+        Integer holdUserId,
+        Integer bookingUserId
 ) {
 }

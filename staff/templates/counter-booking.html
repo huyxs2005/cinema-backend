@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="staff/staff-layout :: layout('Đặt vé tại quầy', ~{::body})">
+<body>
+<section class="staff-booking-page" id="staffBookingRoot"
+         th:attr="data-initial-showtime=${initialShowtimeId},
+                  data-showtime-endpoint=@{/api/staff/showtimes},
+                  data-showtime-options=@{/api/staff/showtimes/options},
+                  data-booking-endpoint=@{/api/staff/bookings},
+                  data-seat-fragment-template='/movies/seat-fragment/:id'">
+    <section class="staff-hero">
+        <div>
+            <p class="staff-eyebrow">Đặt vé tại quầy</p>
+            <h1>Hoàn thành quy trình bán vé 3 bước</h1>
+            <p>Chọn phim, chọn suất chiếu và giữ ghế + thông tin khách trong một giao diện.</p>
+        </div>
+    </section>
+
+    <div class="booking-layout">
+        <div>
+            <article class="step-card">
+                <div class="step-head">
+                    <div class="step-number">1</div>
+                    <div>
+                        <h2>Chọn suất chiếu</h2>
+                        <p>Những suất đang mở bán trong 7 ngày tới.</p>
+                    </div>
+                </div>
+                <label class="w-100 mb-2" for="bookingShowtimeSelect">Suất chiếu</label>
+                <select class="form-select" id="bookingShowtimeSelect">
+                    <option value="">-- Chọn suất chiếu --</option>
+                </select>
+                <small class="text-muted">Hệ thống tự động tải các suất khả dụng mới nhất.</small>
+            </article>
+
+            <article class="detail-card" id="bookingShowtimeCard" hidden>
+                <h2>Thông tin suất chiếu</h2>
+                <p class="muted">Kiểm tra phim, phòng và tình trạng lấp đầy.</p>
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Phim</dt>
+                    <dd class="col-sm-8" id="detailMovie">---</dd>
+                    <dt class="col-sm-4">Phòng</dt>
+                    <dd class="col-sm-8" id="detailAuditorium">---</dd>
+                    <dt class="col-sm-4">Thời gian</dt>
+                    <dd class="col-sm-8" id="detailTime">---</dd>
+                    <dt class="col-sm-4">Lấp đầy</dt>
+                    <dd class="col-sm-8" id="detailOccupancy">---</dd>
+                </dl>
+            </article>
+
+            <article class="step-card seat-selection-wrapper">
+                <div class="step-head">
+                    <div class="step-number">2</div>
+                    <div>
+                        <h2>Chọn ghế</h2>
+                        <p>Giữ ghế trước khi nhập thông tin khách.</p>
+                    </div>
+                </div>
+                <div id="seatSelectionWrapper">
+                    <div class="text-center py-4" id="seatSelectionPlaceholder">
+                        Vui lòng chọn một suất chiếu để hiển thị sơ đồ ghế.
+                    </div>
+                    <div id="staffSeatFragment"></div>
+                </div>
+            </article>
+        </div>
+
+        <div>
+            <article class="step-card">
+                <div class="step-head">
+                    <div class="step-number">3</div>
+                    <div>
+                        <h2>Thông tin khách hàng</h2>
+                        <p>Nhập thông tin liên hệ để xuất vé.</p>
+                    </div>
+                </div>
+                <form id="staffBookingForm" class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label" for="customerFullName">Họ tên khách<span class="text-danger">*</span></label>
+                        <input class="form-control" id="customerFullName" name="customerFullName" placeholder="Nguyễn Văn A" required type="text">
+                        <p class="input-error" data-error-for="customerFullName"></p>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="customerPhone">Số điện thoại<span class="text-danger">*</span></label>
+                        <input class="form-control" id="customerPhone" name="customerPhone" placeholder="0901 234 567" required type="tel">
+                        <p class="input-error" data-error-for="customerPhone"></p>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="customerEmail">Email</label>
+                        <input class="form-control" id="customerEmail" name="customerEmail" placeholder="khach@cinema.vn" type="email">
+                        <p class="input-error" data-error-for="customerEmail"></p>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label" for="discountSelect">Khuyến mãi / Giảm giá</label>
+                        <select class="form-select" id="discountSelect">
+                            <option value="0" data-percent="0">Không giảm giá — 0%</option>
+                            <option value="0.2" data-percent="0.2">Trẻ em, người cao tuổi, người có công, hoàn cảnh khó khăn — Giảm 20%</option>
+                            <option value="0.5" data-percent="0.5">Người khuyết tật nặng — Giảm 50%</option>
+                            <option value="1" data-percent="1">Khuyết tật đặc biệt nặng, trẻ em dưới 0.7m đi cùng người lớn — Giảm 100%</option>
+                        </select>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label">Phương thức thanh toán</label>
+                        <div class="payment-methods">
+                            <label class="payment-option">
+                                <input type="radio" name="paymentMethod" value="CASH" checked>
+                                <span>Tiền mặt</span>
+                            </label>
+                            <label class="payment-option">
+                                <input type="radio" name="paymentMethod" value="TRANSFER">
+                                <span>Chuyển khoản ngân hàng</span>
+                            </label>
+                        </div>
+                        <div class="bank-transfer-panel" id="bankTransferPanel" hidden>
+                            <div class="bank-transfer-info">
+                                <p class="bank-name">MB Bank - DAO NAM HAI</p>
+                                <p class="bank-number">Số tài khoản: 0931630902</p>
+                                <p class="bank-note">QR sẽ tự động áp dụng theo số tiền cuối cùng.</p>
+                                <img th:src="@{/img/bank-transfer-qr.svg}" src="/img/bank-transfer-qr.svg" alt="MB Bank QR" loading="lazy">
+                            </div>
+                            <p class="helper-text">Vui lòng xác nhận khách đã chuyển khoản thành công trước khi ấn “Xác nhận tạo vé”.</p>
+                        </div>
+                    </div>
+                </form>
+            </article>
+
+            <article class="step-card booking-summary-card">
+                <h2>Tóm tắt vé</h2>
+                <p class="text-muted mb-2">Số ghế đã chọn: <strong id="summarySeatCount">0</strong></p>
+                <ul class="list-unstyled" id="summarySeatList"></ul>
+                <div class="summary-total">
+                    <span>Tổng tiền</span>
+                    <strong id="summaryTotal">0 đ</strong>
+                </div>
+                <div class="booking-result" id="bookingResult" hidden>
+                    <p>Mã đặt vé: <strong id="bookingCodeLabel">---</strong></p>
+                    <p class="text-muted mb-0" id="bookingStatusLabel">---</p>
+                </div>
+                <p class="text-warning" id="bookingError" hidden></p>
+                <div class="btn-group mt-3">
+                    <button class="btn btn-primary" id="createBookingBtn" type="button">Xác nhận tạo vé</button>
+                    <button class="btn btn-outline-light" id="printTicketBtn" type="button" disabled>In vé (PDF)</button>
+                </div>
+            </article>
+        </div>
+    </div>
+    <div class="staff-toast" id="staffBookingToast" role="status"></div>
+</section>
+<script th:src="@{/seat-selection.js}"></script>
+<script th:src="@{/staff/staff-booking.js}"></script>
+</body>
+</html>

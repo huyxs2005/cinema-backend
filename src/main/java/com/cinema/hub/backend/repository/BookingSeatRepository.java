@@ -1,5 +1,6 @@
 package com.cinema.hub.backend.repository;
 
+import com.cinema.hub.backend.dto.SeatBookingBlock;
 import com.cinema.hub.backend.entity.BookingSeat;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -20,6 +21,22 @@ public interface BookingSeatRepository extends JpaRepository<BookingSeat, Intege
         and b.bookingStatus <> com.cinema.hub.backend.entity.enums.BookingStatus.Cancelled
     """)
     Set<Integer> findActiveSeatIds(@Param("showtimeSeatIds") Collection<Integer> showtimeSeatIds);
+
+    @Query("""
+        select new com.cinema.hub.backend.dto.SeatBookingBlock(
+            ss.id,
+            b.id,
+            b.user.id,
+            b.bookingStatus,
+            b.paymentStatus
+        )
+        from BookingSeat bs
+        join bs.booking b
+        join bs.showtimeSeat ss
+        where ss.id in :showtimeSeatIds
+        and b.bookingStatus <> com.cinema.hub.backend.entity.enums.BookingStatus.Cancelled
+    """)
+    List<SeatBookingBlock> findBlockingBookings(@Param("showtimeSeatIds") Collection<Integer> showtimeSeatIds);
 
     @Query("""
         select bs from BookingSeat bs

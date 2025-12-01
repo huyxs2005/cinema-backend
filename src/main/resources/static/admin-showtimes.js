@@ -35,7 +35,8 @@ const showtimeState = {
     repeatDayButtons: [],
     groupedShowtimes: [],
     selectedMovieId: null,
-    filterSelectedMovieId: null
+    filterSelectedMovieId: null,
+    timeSuggestionButtons: []
 };
 
 const repeatDayPresets = {
@@ -44,6 +45,11 @@ const repeatDayPresets = {
     WEEKDAY: [1, 2, 3, 4, 5],
     WEEKEND: [6, 7]
 };
+
+const SHOWTIME_TIME_MIN = "08:00";
+const SHOWTIME_TIME_MAX = "22:00";
+const SHOWTIME_MINUTES_MIN = timeStringToMinutes(SHOWTIME_TIME_MIN);
+const SHOWTIME_MINUTES_MAX = timeStringToMinutes(SHOWTIME_TIME_MAX);
 
 const escapeHtml = (value = "") =>
     String(value)
@@ -69,13 +75,15 @@ async function initShowtimeAdmin() {
     initFilterShowtimeMovieSearch();
     await loadShowtimeOptions();
     bindShowtimeForm();
+    initTimeSuggestions();
     bindShowtimeFilters();
     fetchShowtimes();
 }
 
 function initRepeatControls() {
     const modeSelect = document.getElementById("showtimeRepeatMode");
-    const startInput = document.getElementById("showtimeStartTime");
+    const startTimeInput = document.getElementById("showtimeStartTime");
+    const startDateInput = document.getElementById("showtimeStartDate");
     showtimeState.repeatDayButtons = Array.from(document.querySelectorAll("#repeatDayButtons button"));
     if (!modeSelect || showtimeState.repeatDayButtons.length === 0) {
         return;
@@ -89,11 +97,13 @@ function initRepeatControls() {
     showtimeState.repeatDayButtons.forEach((btn) => {
         btn.addEventListener("click", () => toggleRepeatDay(btn));
     });
-    startInput?.addEventListener("change", () => {
+    const highlightIfNeeded = () => {
         if (modeSelect.value === "NONE") {
             highlightStartDay();
         }
-    });
+    };
+    startTimeInput?.addEventListener("change", highlightIfNeeded);
+    startDateInput?.addEventListener("change", highlightIfNeeded);
     applyRepeatModePreset(modeSelect.value);
 }
 
@@ -123,13 +133,13 @@ function setRepeatDaySelection(days) {
 }
 
 function highlightStartDay() {
-    const startInput = document.getElementById("showtimeStartTime");
-    const startValue = startInput?.value;
+    const startDateInput = document.getElementById("showtimeStartDate");
+    const startDateValue = startDateInput?.value;
     clearRepeatDaySelection();
-    if (!startValue) {
+    if (!startDateValue) {
         return;
     }
-    const dayNumber = getDayNumberFromDateString(startValue);
+    const dayNumber = getDayNumberFromDate(startDateValue);
     if (dayNumber) {
         setRepeatDaySelection([dayNumber]);
     }
@@ -150,13 +160,55 @@ function getSelectedRepeatDays() {
         .filter((num) => !Number.isNaN(num));
 }
 
-function getDayNumberFromDateString(value) {
-    const date = new Date(value);
+function getDayNumberFromDate(value) {
+    const date = new Date(`${value}T00:00:00`);
     if (Number.isNaN(date.getTime())) {
         return null;
     }
     const jsDay = date.getDay();
     return ((jsDay + 6) % 7) + 1;
+}
+
+function initTimeSuggestions() {
+    const container = document.getElementById("showtimeTimeSuggestions");
+    const timeInput = document.getElementById("showtimeStartTime");
+    if (!container || !timeInput) {
+        showtimeState.timeSuggestionButtons = [];
+        return;
+    }
+    showtimeState.timeSuggestionButtons = Array.from(
+        container.querySelectorAll("[data-time-suggestion]")
+    );
+    if (!showtimeState.timeSuggestionButtons.length) {
+        return;
+    }
+    showtimeState.timeSuggestionButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+            const value = button.dataset.timeSuggestion;
+            if (!value || !timeInput) {
+                return;
+            }
+            timeInput.value = value;
+            timeInput.dispatchEvent(new Event("input", { bubbles: true }));
+            timeInput.dispatchEvent(new Event("change", { bubbles: true }));
+            syncTimeSuggestionButtons();
+        });
+    });
+    timeInput.addEventListener("input", syncTimeSuggestionButtons);
+    timeInput.addEventListener("change", syncTimeSuggestionButtons);
+    syncTimeSuggestionButtons();
+}
+
+function syncTimeSuggestionButtons() {
+    if (!Array.isArray(showtimeState.timeSuggestionButtons)) {
+        return;
+    }
+    const timeInput = document.getElementById("showtimeStartTime");
+    const currentValue = timeInput?.value?.slice(0, 5) || "";
+    showtimeState.timeSuggestionButtons.forEach((button) => {
+        const buttonValue = button.dataset.timeSuggestion || "";
+        button.classList.toggle("active", buttonValue === currentValue);
+    });
 }
 
 function bindShowtimeForm() {
@@ -906,7 +958,9 @@ async function submitShowtimeForm(event) {
     if (showtimeState.submitting) return;
 
     const payload = buildShowtimePayload();
-    const validationErrors = validateShowtimePayload(payload);
+    const startDateValue = document.getElementById("showtimeStartDate")?.value || "";
+    const startTimeValue = document.getElementById("showtimeStartTime")?.value || "";
+    const validationErrors = validateShowtimePayload(payload, { startDateValue, startTimeValue });
     clearShowtimeErrors();
     const messageBox = document.getElementById("showtimeFormMessage");
     messageBox.textContent = "";
@@ -953,8 +1007,9 @@ async function submitShowtimeForm(event) {
 }
 
 function buildShowtimePayload() {
-    const startValue = document.getElementById("showtimeStartTime").value;
-    const normalizedStart = startValue ? `${startValue}${startValue.length === 16 ? ":00" : ""}` : null;
+    const startDateValue = document.getElementById("showtimeStartDate")?.value || "";
+    const startTimeValue = document.getElementById("showtimeStartTime")?.value || "";
+    const normalizedStart = combineDateAndTime(startDateValue, startTimeValue);
     return {
         movieId: valueOrNull(document.getElementById("showtimeMovieId").value),
         auditoriumId: valueOrNull(document.getElementById("showtimeAuditoriumId").value),
@@ -966,16 +1021,29 @@ function buildShowtimePayload() {
     };
 }
 
-function validateShowtimePayload(payload) {
+function validateShowtimePayload(payload, options = {}) {
     const errors = [];
+    const startDateValue = options.startDateValue || "";
+    const startTimeValue = options.startTimeValue || "";
     if (!payload.movieId) {
         errors.push({ field: "showtimeMovieSearch", message: "Vui lòng chọn phim *" });
     }
     if (!payload.auditoriumId) {
         errors.push({ field: "showtimeAuditoriumId", message: "Vui lòng chọn phòng chiếu *" });
     }
-    if (!payload.startTime) {
+    if (!startDateValue) {
+        errors.push({ field: "showtimeStartDate", message: "Vui lòng chọn ngày bắt đầu *" });
+    }
+    if (!startTimeValue) {
         errors.push({ field: "showtimeStartTime", message: "Vui lòng chọn giờ bắt đầu *" });
+    } else if (!isWithinAllowedStartTime(startTimeValue)) {
+        errors.push({
+            field: "showtimeStartTime",
+            message: "Giờ bắt đầu phải nằm trong khoảng 08:00 - 22:00"
+        });
+    }
+    if (!payload.startTime && startDateValue && startTimeValue) {
+        errors.push({ field: "showtimeStartTime", message: "Giờ bắt đầu không hợp lệ" });
     }
     if (payload.repeatUntil) {
         if (!payload.startTime) {
@@ -988,7 +1056,13 @@ function validateShowtimePayload(payload) {
 }
 
 function clearShowtimeErrors() {
-    ["showtimeMovieSearch", "showtimeAuditoriumId", "showtimeStartTime", "showtimeRepeatUntil"].forEach((id) => {
+    [
+        "showtimeMovieSearch",
+        "showtimeAuditoriumId",
+        "showtimeStartDate",
+        "showtimeStartTime",
+        "showtimeRepeatUntil"
+    ].forEach((id) => {
         document.getElementById(id)?.classList.remove("is-invalid");
         const errorBox = document.getElementById(`${id}Error`);
         if (errorBox) errorBox.textContent = "";
@@ -1048,6 +1122,7 @@ function resetShowtimeForm() {
     setFormSelectedMovie(null);
     hideShowtimeMovieSuggestions();
     clearShowtimeErrors();
+    syncTimeSuggestionButtons();
 }
 
 async function editShowtime(id) {
@@ -1059,7 +1134,13 @@ async function editShowtime(id) {
         document.getElementById("showtimeFormTitle").textContent = `Chỉnh sửa suất chiếu #${showtime.id}`;
         setFormSelectedMovie(showtime.movieId ?? null);
         document.getElementById("showtimeAuditoriumId").value = showtime.auditoriumId ?? "";
-        document.getElementById("showtimeStartTime").value = formatDateTimeForInput(showtime.startTime);
+        const startParts = splitDateAndTime(showtime.startTime);
+        const startDateInput = document.getElementById("showtimeStartDate");
+        if (startDateInput) {
+            startDateInput.value = startParts.datePart;
+        }
+        document.getElementById("showtimeStartTime").value = startParts.timePart;
+        syncTimeSuggestionButtons();
         const repeatSelect = document.getElementById("showtimeRepeatMode");
         if (repeatSelect) {
             repeatSelect.value = "NONE";
@@ -1115,15 +1196,73 @@ function formatShowDate(value) {
     });
 }
 
-function formatDateTimeForInput(value) {
-    if (!value) return "";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "";
-    const tzOffset = date.getTimezoneOffset() * 60000;
-    const local = new Date(date.getTime() - tzOffset);
-    return local.toISOString().slice(0, 16);
+function splitDateAndTime(value) {
+    if (!value) {
+        return { datePart: "", timePart: "" };
+    }
+    const normalized = value.replace(" ", "T");
+    const [datePart = "", rest = ""] = normalized.split("T");
+    if (!rest) {
+        return { datePart, timePart: "" };
+    }
+    const timeMatch = rest.match(/^(\d{2}:\d{2})/);
+    return {
+        datePart,
+        timePart: timeMatch ? timeMatch[1] : ""
+    };
+}
+
+function combineDateAndTime(dateValue, timeValue) {
+    if (!dateValue || !timeValue) {
+        return null;
+    }
+    const normalizedTime = normalizeTimeValue(timeValue);
+    if (!normalizedTime) {
+        return null;
+    }
+    return `${dateValue}T${normalizedTime}`;
+}
+
+function normalizeTimeValue(value) {
+    if (!value) {
+        return null;
+    }
+    const segments = value.split(":");
+    if (segments.length < 2) {
+        return null;
+    }
+    const [hours, minutes, seconds = "00"] = segments;
+    const trimmedSeconds = seconds.split(".")[0];
+    if (!hours || !minutes) {
+        return null;
+    }
+    return `${hours.padStart(2, "0")}:${minutes.padStart(2, "0")}:${trimmedSeconds.padStart(2, "0")}`;
 }
 
 function valueOrNull(value) {
     return value ? Number(value) : null;
+}
+
+function isWithinAllowedStartTime(value) {
+    const minutes = timeStringToMinutes(value);
+    if (minutes === null) {
+        return false;
+    }
+    return minutes >= SHOWTIME_MINUTES_MIN && minutes <= SHOWTIME_MINUTES_MAX;
+}
+
+function timeStringToMinutes(value) {
+    if (!value) {
+        return null;
+    }
+    const [hours, minutes] = value.split(":");
+    if (hours === undefined || minutes === undefined) {
+        return null;
+    }
+    const h = Number(hours);
+    const m = Number(minutes);
+    if (Number.isNaN(h) || Number.isNaN(m)) {
+        return null;
+    }
+    return h * 60 + m;
 }

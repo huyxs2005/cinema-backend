@@ -24,27 +24,33 @@ public class CheckoutController {
     @GetMapping("/checkout/{showtimeId}")
     public String checkoutPage(@PathVariable int showtimeId,
                                @RequestParam(name = "token", required = false) String holdToken,
+                               @RequestParam(name = "bookingId", required = false) Integer bookingId,
                                Model model) {
         var currentUser = userService.requireCurrentUser();
         model.addAttribute("checkout", null);
         model.addAttribute("fallbackShowtimeId", showtimeId);
-        if (!StringUtils.hasText(holdToken)) {
-            model.addAttribute("checkoutError", "Phiên giữ ghế đã hết hạn. Vui lòng chọn lại ghế.");
-            return "checkout";
-        }
-        String trimmedToken = holdToken.trim();
+        String trimmedToken = StringUtils.hasText(holdToken) ? holdToken.trim() : null;
         model.addAttribute("checkoutToken", trimmedToken);
         try {
-            CheckoutPageView checkoutView =
-                    seatReservationService.getCheckoutView(showtimeId, trimmedToken, currentUser.getId());
+            CheckoutPageView checkoutView;
+            if (StringUtils.hasText(trimmedToken)) {
+                checkoutView = seatReservationService.getCheckoutView(showtimeId, trimmedToken, currentUser.getId());
+            } else if (bookingId != null) {
+                checkoutView = seatReservationService.getCheckoutViewForBooking(bookingId, currentUser.getId());
+            } else {
+                model.addAttribute("checkoutError", "PhiA�n gi��_ gh��� �`A� h���t h���n. Vui lA�ng ch��?n gh��� l���i t��� �`��u.");
+                return "checkout";
+            }
             model.addAttribute("checkout", checkoutView);
             model.addAttribute("currentUserEmail", currentUser.getEmail());
+            model.addAttribute("checkoutBookingId", checkoutView.getBookingId());
+            model.addAttribute("checkoutBookingCode", checkoutView.getBookingCode());
         } catch (SeatSelectionException ex) {
             log.warn("Checkout token rejected for showtime {} and user {}: {}", showtimeId, currentUser.getId(), ex.getMessage());
             model.addAttribute("checkoutError", ex.getMessage());
         } catch (Exception ex) {
             log.error("Unexpected error when preparing checkout view", ex);
-            model.addAttribute("checkoutError", "Không thể tải thông tin thanh toán. Vui lòng thử lại.");
+            model.addAttribute("checkoutError", "KhA'ng th��� t���i thA'ng tin thanh toA�n. Vui lA�ng th��- l���i.");
         }
         return "checkout";
     }

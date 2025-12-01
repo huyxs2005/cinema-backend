@@ -73,7 +73,7 @@
                             <button type="button" data-user-action="profile">Thông tin cá nhân</button>
                             <button type="button" data-user-action="admin"
                                     th:classappend="${(currentUser == null or currentUser.role == null or currentUser.role.name != 'ADMIN') ? ' hidden' : ''}">
-                                Quản lý CRUD
+                                Khu vực quản lý
                             </button>
                             <button type="button" data-user-action="logout">Đăng xuất</button>
                             <form id="logoutForm" th:action="@{/logout}" method="post"></form>

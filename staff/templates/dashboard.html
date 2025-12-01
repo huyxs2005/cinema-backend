@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="staff/staff-layout :: layout('Bảng điều khiển nhân viên', ~{::body})">
+<body>
+<section class="staff-dashboard">
+    <header class="dashboard-header">
+        <div class="dashboard-logo">
+            <div class="logo-mark">CH</div>
+            <div class="logo-text">
+                <span>Cinema Hub</span>
+                <span>Staff Control</span>
+            </div>
+        </div>
+        <div class="datetime-chip" id="staffDashboardClock">--</div>
+    </header>
+    <section class="welcome-card">
+        <p class="welcome-eyebrow">Xin chào, nhân viên quầy!</p>
+        <h1>Trung tâm vận hành quầy vé</h1>
+        <p>
+            Truy cập nhanh tới các tác vụ vận hành: xem suất chiếu, giữ ghế, hỗ trợ khách lấy vé và
+            xử lý check-in tại quầy.
+        </p>
+    </section>
+    <section class="actions-grid">
+        <a class="action-card action-card--schedule" th:href="@{/staff/showtimes}">
+            <div class="card-icon text-info">
+                <i class="bi bi-calendar-week"></i>
+            </div>
+            <h2>Suất chiếu hôm nay</h2>
+            <p>Xem nhanh lịch chiếu, tình trạng ghế và chuyển thẳng tới đặt vé.</p>
+            <span class="card-cta">Xem danh sách <i class="bi bi-chevron-right"></i></span>
+        </a>
+        <a class="action-card action-card--ticket" th:href="@{/staff/counter-booking}">
+            <div class="card-icon text-success">
+                <i class="bi bi-ticket-detailed"></i>
+            </div>
+            <h2>Đặt vé tại quầy</h2>
+            <p>Chọn suất chiếu, giữ ghế, lưu thông tin khách và xuất vé tức thì.</p>
+            <span class="card-cta">Bắt đầu <i class="bi bi-arrow-up-right"></i></span>
+        </a>
+        <a class="action-card action-card--scanner" th:href="@{/staff/qr-scan}">
+            <div class="card-icon text-warning">
+                <i class="bi bi-qr-code-scan"></i>
+            </div>
+            <h2>Quét mã QR</h2>
+            <p>Quét vé hoặc nhập mã thủ công để kiểm tra và check-in.</p>
+            <span class="card-cta">Quét ngay <i class="bi bi-lightning-charge"></i></span>
+        </a>
+    </section>
+</section>
+<script>
+    const staffClockEl = document.getElementById('staffDashboardClock');
+    const renderStaffClock = () => {
+        if (!staffClockEl) return;
+        const now = new Date();
+        staffClockEl.textContent = now.toLocaleDateString('vi-VN', {
+            weekday: 'long',
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    };
+    renderStaffClock();
+    setInterval(renderStaffClock, 30 * 1000);
+</script>
+</body>
+</html>

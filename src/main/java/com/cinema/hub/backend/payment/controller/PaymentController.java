@@ -40,7 +40,9 @@ public class PaymentController {
     @PostMapping("/payos/checkout")
     public ResponseEntity<PaymentCheckoutResponse> legacyCheckout(@Valid @RequestBody PaymentCheckoutRequest request) {
         var user = userService.requireCurrentUser();
-        var booking = bookingService.createBookingFromHold(user, request.getHoldToken(), "VietQR");
+        var booking = request.getBookingId() != null
+                ? bookingService.getBookingForUser(user, request.getBookingId())
+                : bookingService.createBookingFromHold(user, request.getHoldToken(), "VietQR");
 
         PaymentCreateRequest createRequest = new PaymentCreateRequest();
         createRequest.setBookingId(booking.getId());

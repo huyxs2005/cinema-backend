@@ -30,7 +30,8 @@ public interface ShowtimeSeatRepository extends JpaRepository<ShowtimeSeat, Inte
             sh.expiresAt,
             b.bookingStatus,
             b.paymentStatus,
-            sh.user.id
+            sh.user.id,
+            b.user.id
         )
         from ShowtimeSeat ss
         join ss.seat seat

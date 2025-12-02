@@ -18,6 +18,7 @@ public class SeatSelectionShowtimeView {
     private String format;
     private LocalDateTime startTime;
     private int maxSeatsPerOrder;
+    private int holdDurationSeconds;
 
     public static SeatSelectionShowtimeView fromEntity(Showtime showtime) {
         return SeatSelectionShowtimeView.builder()
@@ -29,7 +30,8 @@ public class SeatSelectionShowtimeView {
                 .auditoriumName(showtime.getAuditorium().getName())
                 .format("Tiêu chuẩn")
                 .startTime(showtime.getStartTime())
-                .maxSeatsPerOrder(6)
+                .maxSeatsPerOrder(0)
+                .holdDurationSeconds(600)
                 .build();
     }
 }

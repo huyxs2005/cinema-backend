@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
     const ready = (callback) => {
         if (document.readyState !== 'loading') {
             callback();
@@ -102,6 +102,7 @@
             return;
         }
         const posterUrl = seatLayout.dataset.posterUrl || '';
+        const holdDurationMs = Number(seatLayout.dataset.holdDurationMs || '600000');
 
         const selectedList = root.querySelector('#selectedSeatsList');
         const placeholder = root.querySelector('#selectedSeatsPlaceholder');
@@ -128,7 +129,9 @@
             )
             : null;
         const selection = new Map();
-        const maxSelection = Number(seatLayout.dataset.maxSelection || '0');
+        const rawMaxSelection = seatLayout.dataset.maxSelection;
+        const maxSelection = rawMaxSelection ? Number(rawMaxSelection) : 0;
+        const hasSelectionLimit = Number.isFinite(maxSelection) && maxSelection > 0;
         const seatMapEndpoint = seatLayout.dataset.seatMapEndpoint || null;
         const showtimeId = Number(seatLayout.dataset.showtimeId || showtimeIdInput?.value || 0);
         const statusClasses = ['seat--available', 'seat--held', 'seat--sold', 'seat--disabled'];
@@ -139,6 +142,10 @@
         let seatTimerIntervalId = null;
         let holdToken = holdTokenInput?.value || null;
         let navigatingToCheckout = false;
+        let seatSessionDeadline = Date.now() + holdDurationMs;
+        let lastSyncedSeatKey = '';
+        let holdSyncInFlight = false;
+        let holdSyncPending = false;
 
         const showSeatMessage = (message, tone = 'warning') => {
             if (!seatMessage || !message) {
@@ -166,7 +173,7 @@
         };
 
         const showLimitMessage = (shouldShow) => {
-            if (!limitMessage) {
+            if (!limitMessage || !hasSelectionLimit) {
                 return;
             }
             limitMessage.hidden = !shouldShow;
@@ -308,11 +315,18 @@
                     .filter((id) => Number.isFinite(id));
         };
 
+        const generateSeatKey = () => {
+            if (!selection.size) {
+                return '';
+            }
+            return Array.from(selection.keys()).sort().join(',');
+        };
+
         const updateSelectionUI = () => {
             if (placeholder) {
                 placeholder.hidden = selection.size > 0;
             }
-            if (limitMessage && (!maxSelection || selection.size < maxSelection)) {
+            if (limitMessage && (!hasSelectionLimit || selection.size < maxSelection)) {
                 showLimitMessage(false);
             }
             if (selectedList) {
@@ -356,7 +370,7 @@
             if (!id) {
                 return;
             }
-            if (!selection.has(id) && maxSelection && selection.size >= maxSelection && !skipLimitCheck) {
+            if (!selection.has(id) && hasSelectionLimit && selection.size >= maxSelection && !skipLimitCheck) {
                 showLimitMessage(true);
                 return;
             }
@@ -404,8 +418,8 @@
             const shouldSelect = groupedSeats.some((btn) => !selection.has(btn.dataset.seatId));
             if (shouldSelect) {
                 const needed = groupedSeats.filter((btn) => !selection.has(btn.dataset.seatId)).length;
-                const remaining = maxSelection ? Math.max(maxSelection - selection.size, 0) : needed;
-                if (maxSelection && needed > remaining) {
+                const remaining = hasSelectionLimit ? Math.max(maxSelection - selection.size, 0) : needed;
+                if (hasSelectionLimit && needed > remaining) {
                     showLimitMessage(true);
                     return;
                 }
@@ -441,20 +455,39 @@
             }
         };
 
+        const resolveDeadline = (deadline) => {
+            if (deadline instanceof Date) {
+                return deadline.getTime();
+            }
+            if (typeof deadline === 'number') {
+                return deadline;
+            }
+            if (typeof deadline === 'string') {
+                const parsed = new Date(deadline).getTime();
+                return Number.isFinite(parsed) ? parsed : null;
+            }
+            return null;
+        };
+
         const startSelectionTimerFrom = (deadline) => {
-            if (!seatTimerDisplay || !seatTimerBox || !deadline) {
+            if (!seatTimerDisplay || !seatTimerBox) {
                 return;
             }
-            const expiresAt = new Date(deadline).getTime();
+            let resolved = resolveDeadline(deadline);
+            if (resolved == null) {
+                resolved = seatSessionDeadline ?? (Date.now() + holdDurationMs);
+            }
+            seatSessionDeadline = resolved;
             clearSelectionTimer();
             seatTimerBox.hidden = false;
             const tick = () => {
-                const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+                const remaining = Math.max(0, Math.floor((seatSessionDeadline - Date.now()) / 1000));
                 const minutes = String(Math.floor(remaining / 60)).padStart(2, '0');
                 const seconds = String(remaining % 60).padStart(2, '0');
                 seatTimerDisplay.textContent = `${minutes}:${seconds}`;
                 if (remaining <= 0) {
                     clearSelectionTimer();
+                    seatSessionDeadline = null;
                     showSeatMessage('Phiên giữ ghế đã hết hạn. Vui lòng chọn lại ghế.', 'error');
                     resetSelectionState();
                     releaseHold(true);
@@ -470,28 +503,46 @@
 
         const scheduleSeatHoldSync = () => {
             if (selection.size === 0) {
+                lastSyncedSeatKey = '';
+                holdSyncPending = false;
                 releaseHold(true);
                 return;
             }
-            syncSeatHold();
+            const seatKey = generateSeatKey();
+            if (seatKey === lastSyncedSeatKey && holdToken) {
+                return;
+            }
+            if (holdSyncInFlight) {
+                holdSyncPending = true;
+                return;
+            }
+            syncSeatHold(seatKey);
         };
 
-        const syncSeatHold = async () => {
+        const syncSeatHold = async (seatKeyOverride = null) => {
             const seatIds = parseSeatIds();
             if (!seatIds.length || !showtimeId) {
+                lastSyncedSeatKey = '';
                 releaseHold(true);
                 return;
             }
+            const seatKey = seatKeyOverride ?? generateSeatKey();
+            holdSyncInFlight = true;
             try {
                 const response = await fetch(`/api/showtimes/${showtimeId}/holds`, {
                     method: 'POST',
                     credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ showtimeId, seatIds, previousHoldToken: holdToken || null })
+                    body: JSON.stringify({
+                        showtimeId,
+                        seatIds,
+                        previousHoldToken: holdToken || null
+                    })
                 });
                 if (response.status === 401) {
                     promptLogin();
                     resetSelectionState();
+                    lastSyncedSeatKey = '';
                     return;
                 }
                 if (!response.ok) {
@@ -505,8 +556,11 @@
                 }
                 persistHoldToken(showtimeId, holdToken);
                 hideSeatMessage();
-                startSelectionTimerFrom(body.expiresAt);
+                lastSyncedSeatKey = seatKey;
+                const expiresAt = body.expiresAt ? new Date(body.expiresAt).getTime() : null;
+                startSelectionTimerFrom(expiresAt);
             } catch (error) {
+                lastSyncedSeatKey = '';
                 const message = error?.message || '';
                 if (message.toLowerCase().includes('seat already held')) {
                     showSeatHoldConflict();
@@ -515,24 +569,31 @@
                 }
                 resetSelectionState();
                 refreshSeatMap();
+            } finally {
+                holdSyncInFlight = false;
+                if (holdSyncPending) {
+                    holdSyncPending = false;
+                    scheduleSeatHoldSync();
+                }
             }
         };
-
         const releaseHold = async (silent = false, keepalive = false) => {
             if (!holdToken || !showtimeId) {
                 holdToken = null;
+                lastSyncedSeatKey = '';
+                holdSyncPending = false;
                 if (holdTokenInput) {
                     holdTokenInput.value = '';
                 }
-                clearSelectionTimer();
                 return;
             }
             const tokenToRelease = holdToken;
             holdToken = null;
+            lastSyncedSeatKey = '';
+            holdSyncPending = false;
             if (holdTokenInput) {
                 holdTokenInput.value = '';
             }
-            clearSelectionTimer();
             const releasePath = `/api/showtimes/${showtimeId}/holds/${tokenToRelease}`;
             const beaconPath = `${releasePath}/release`;
             const requestOptions = {
@@ -595,6 +656,8 @@
         const handleBackClick = async () => {
             resetSelectionState();
             await releaseHold(true);
+            clearSelectionTimer();
+            seatSessionDeadline = null;
             const container = seatLayout.closest('.seat-selection-container');
             if (container) {
                 container.hidden = true;
@@ -610,6 +673,8 @@
                 return;
             }
             releaseHold(true, true);
+            clearSelectionTimer();
+            seatSessionDeadline = null;
         };
 
         const hydrateFromMarkup = () => {
@@ -631,6 +696,7 @@
         };
 
         hydrateFromMarkup();
+        startSelectionTimerFrom(seatSessionDeadline);
 
         if (checkoutBtn) {
             checkoutBtn.addEventListener('click', handleCheckoutClick);
@@ -664,3 +730,5 @@
         initializeSeatSelection();
     })();
 })();
+
+

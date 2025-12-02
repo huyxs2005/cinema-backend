@@ -19,6 +19,7 @@
          th:with="posterUrl=${showtimeDetails.posterUrl != null ? showtimeDetails.posterUrl : '/img/hitsuyou.svg'}"
          th:style="|--seat-poster:url('${posterUrl}');|"
          th:attr="data-max-selection=${maxSeatsPerOrder},
+                  data-hold-duration-ms=${showtimeDetails.holdDurationSeconds * 1000},
                   data-seat-map-endpoint=@{/api/showtimes/{id}/seats(id=${showtimeDetails.id})},
                   data-showtime-id=${showtimeDetails.id},
                   data-poster-url=${posterUrl}">
@@ -74,12 +75,10 @@
                 <button class="btn btn-outline" type="button" data-seat-back>Quay lại</button>
                 <button class="btn btn-primary" type="button" data-checkout-link disabled>Thanh toán</button>
             </div>
-            <p class="muted">Tối đa <strong th:text="${maxSeatsPerOrder}">6</strong> ghế mỗi giao dịch.</p>
             <div class="selected-list-wrapper">
                 <p class="empty-state" id="selectedSeatsPlaceholder">Chọn ghế để xem chi tiết.</p>
                 <ul id="selectedSeatsList"></ul>
             </div>
-            <p class="warning-text" id="selectionLimitMessage" hidden></p>
             <div class="sidebar__total">
                 <span>Tổng tiền</span>
                 <strong id="selectedTotal">0 đ</strong>

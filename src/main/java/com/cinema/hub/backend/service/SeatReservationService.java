@@ -168,11 +168,26 @@ public class SeatReservationService {
         Set<Integer> expandedSeatIds = expandSeatIdsForCouples(uniqueSeatIds);
         OffsetDateTime now = TimeProvider.now();
 
+        OffsetDateTime retainedExpiry = null;
         if (StringUtils.hasText(request.getPreviousHoldToken())) {
-            releaseHoldToken(parseHoldToken(request.getPreviousHoldToken()));
+            UUID previousToken = parseHoldToken(request.getPreviousHoldToken());
+            List<SeatHold> previousHolds = seatHoldRepository.findActiveHoldsByToken(previousToken, now);
+            if (previousHolds.isEmpty()) {
+                throw new SeatSelectionException("Phiên giữ ghế đã hết hạn. Vui lòng chọn lại ghế.");
+            }
+            retainedExpiry = previousHolds.get(0).getExpiresAt();
+            if (retainedExpiry == null || !retainedExpiry.isAfter(now)) {
+                throw new SeatSelectionException("Phiên giữ ghế đã hết hạn. Vui lòng chọn lại ghế.");
+            }
+            releaseHoldToken(previousToken);
         }
 
-        List<SeatHold> newHolds = prepareSeatHolds(request.getShowtimeId(), expandedSeatIds, request.getUserId(), now);
+        List<SeatHold> newHolds = prepareSeatHolds(
+                request.getShowtimeId(),
+                expandedSeatIds,
+                request.getUserId(),
+                now,
+                retainedExpiry);
 
         seatHoldRepository.saveAll(newHolds);
 
@@ -260,7 +275,8 @@ public class SeatReservationService {
     private List<SeatHold> prepareSeatHolds(int showtimeId,
                                             Set<Integer> seatIds,
                                             Integer userId,
-                                            OffsetDateTime now) {
+                                            OffsetDateTime now,
+                                            OffsetDateTime expiresAtOverride) {
         if (seatIds.isEmpty()) {
             throw new SeatSelectionException("Seat list cannot be empty");
         }
@@ -293,7 +309,7 @@ public class SeatReservationService {
         UserAccount user = userId != null ? loadUser(userId) : null;
 
         UUID token = UUID.randomUUID();
-        OffsetDateTime expiresAt = now.plusMinutes(10);
+        OffsetDateTime expiresAt = expiresAtOverride != null ? expiresAtOverride : now.plusMinutes(10);
         List<SeatHold> holds = new ArrayList<>();
         for (com.cinema.hub.backend.entity.ShowtimeSeat seat : lockedSeats) {
             String status = seat.getStatus();

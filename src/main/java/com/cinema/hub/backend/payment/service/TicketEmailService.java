@@ -6,6 +6,7 @@ import com.cinema.hub.backend.entity.enums.PaymentStatus;
 import com.cinema.hub.backend.payment.util.PaymentException;
 import com.cinema.hub.backend.repository.BookingRepository;
 import com.cinema.hub.backend.repository.BookingSeatRepository;
+import com.cinema.hub.backend.util.SeatTypeLabelResolver;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import jakarta.persistence.EntityNotFoundException;
@@ -127,6 +128,7 @@ public class TicketEmailService {
     private String formatSeat(BookingSeat seat) {
         var seatEntity = seat.getShowtimeSeat().getSeat();
         var seatType = seatEntity.getSeatType() != null ? seatEntity.getSeatType().getName() : "Standard";
-        return seatEntity.getRowLabel() + seatEntity.getSeatNumber() + " (" + seatType + ")";
+        var localized = SeatTypeLabelResolver.localize(seatType);
+        return seatEntity.getRowLabel() + seatEntity.getSeatNumber() + " (" + localized + ")";
     }
 }

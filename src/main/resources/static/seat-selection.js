@@ -8,6 +8,11 @@
     };
 
     const HOLD_STORAGE_KEY = 'cinemaSeatHold';
+    const SEAT_TYPE_LABELS = {
+        STANDARD: 'Ghế thường',
+        VIP: 'Ghế VIP',
+        COUPLE: 'Ghế đôi'
+    };
 
     const persistHoldToken = (showtimeId, token) => {
         if (!showtimeId || !token) {
@@ -182,6 +187,11 @@
 
         const normalizeSeatType = (value) => (value || 'STANDARD').toUpperCase();
 
+        const formatSeatTypeLabel = (value) => {
+            const normalized = normalizeSeatType(value);
+            return SEAT_TYPE_LABELS[normalized] || normalized;
+        };
+
         const applySeatTypeClass = (button, seatType) => {
             typeClasses.forEach((cls) => button.classList.remove(cls));
             const normalized = seatType.toLowerCase();
@@ -237,13 +247,14 @@
                             return;
                         }
                         const status = (seat.status || 'DISABLED').toUpperCase();
+                        const normalizedType = normalizeSeatType(seat.seatType);
                         if (seat.holdUserId != null) {
                             button.dataset.holdUser = seat.holdUserId;
                         } else {
                             delete button.dataset.holdUser;
                         }
                         applySeatStatus(button, status, seat.selectable, seat.holdUserId ?? null);
-                        applySeatTypeClass(button, normalizeSeatType(seat.seatType));
+                        applySeatTypeClass(button, normalizedType);
                         if (seat.coupleGroupId) {
                             button.dataset.coupleGroup = seat.coupleGroupId;
                         } else {
@@ -251,15 +262,19 @@
                         }
                         if (seat.price) {
                             button.dataset.price = seat.price;
-                            if (selection.has(button.dataset.seatId)) {
-                                selection.get(button.dataset.seatId).price = Number(seat.price) || 0;
-                            }
                         }
                         if (seat.seatLabel) {
                             button.dataset.seatLabel = seat.seatLabel;
-                            if (selection.has(button.dataset.seatId)) {
-                                selection.get(button.dataset.seatId).label = seat.seatLabel;
+                        }
+                        if (selection.has(button.dataset.seatId)) {
+                            const entry = selection.get(button.dataset.seatId);
+                            if (seat.price) {
+                                entry.price = Number(seat.price) || 0;
                             }
+                            if (seat.seatLabel) {
+                                entry.label = seat.seatLabel;
+                            }
+                            entry.type = normalizedType;
                         }
                     });
                     updateSelectionUI();
@@ -304,11 +319,21 @@
                 selectedList.innerHTML = '';
                 selection.forEach((seat) => {
                     const li = document.createElement('li');
+                    const info = document.createElement('div');
+                    info.className = 'selected-seat-info';
                     const label = document.createElement('span');
                     label.textContent = seat.label;
+                    info.appendChild(label);
+                    if (seat.type) {
+                        const typeEl = document.createElement('span');
+                        typeEl.className = 'selected-seat-type';
+                        typeEl.textContent = formatSeatTypeLabel(seat.type);
+                        info.appendChild(typeEl);
+                    }
                     const price = document.createElement('span');
+                    price.className = 'selected-seat-price';
                     price.textContent = formatCurrency(seat.price);
-                    li.append(label, price);
+                    li.append(info, price);
                     selectedList.appendChild(li);
                 });
             }
@@ -338,7 +363,8 @@
             selection.set(id, {
                 id,
                 label: button.dataset.seatLabel || id,
-                price: parseFloat(button.dataset.price || '0') || 0
+                price: parseFloat(button.dataset.price || '0') || 0,
+                type: normalizeSeatType(button.dataset.seatType)
             });
             button.classList.add('is-selected');
             if (!silent) {
@@ -459,6 +485,7 @@
             try {
                 const response = await fetch(`/api/showtimes/${showtimeId}/holds`, {
                     method: 'POST',
+                    credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ showtimeId, seatIds, previousHoldToken: holdToken || null })
                 });

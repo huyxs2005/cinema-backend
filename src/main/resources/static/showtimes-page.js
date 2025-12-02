@@ -1,6 +1,7 @@
 const SHOWTIME_RANGE_DAYS = 7;
 const SEAT_INTENT_STORAGE_KEY = "cinemaSeatIntent";
 const SEAT_INTENT_TTL = 5 * 60 * 1000;
+const movieCache = new Map();
 const seatSelectionState = {
     pendingShowtimeId: null,
     pendingMovieId: null
@@ -15,7 +16,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const today = new Date();
     let currentDateKey = formatDateKey(today);
-    let movies = [];
 
     const dateRange = Array.from({ length: SHOWTIME_RANGE_DAYS }, (_, index) => {
         const date = new Date(today);
@@ -30,13 +30,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     Promise.all([fetchNowShowingMovies(), fetchShowtimesByDate(currentDateKey)])
         .then(([movieData, showtimeData]) => {
-            movies = movieData;
-            renderMovieCards(
-                movieListContainer,
-                movies,
-                groupShowtimesByMovie(showtimeData),
-                currentDateKey
-            );
+            cacheMovies(movieData);
+            const grouped = groupShowtimesByMovie(showtimeData);
+            return ensureMovieDetails(Object.keys(grouped)).then(() => {
+                renderMovieCards(
+                    movieListContainer,
+                    grouped,
+                    currentDateKey
+                );
+            });
         })
         .catch(() => {
             movieListContainer.innerHTML = `<div class="showtime-empty-state">Không thể tải dữ liệu lịch chiếu.</div>`;
@@ -46,7 +48,10 @@ document.addEventListener("DOMContentLoaded", () => {
         movieListContainer.innerHTML = `<div class="showtime-empty-state">Đang tải lịch chiếu ${formatHumanDate(dateKey)}...</div>`;
         fetchShowtimesByDate(dateKey)
             .then((showtimes) => {
-                renderMovieCards(movieListContainer, movies, groupShowtimesByMovie(showtimes), dateKey);
+                const grouped = groupShowtimesByMovie(showtimes);
+                ensureMovieDetails(Object.keys(grouped))
+                    .then(() => renderMovieCards(movieListContainer, grouped, dateKey))
+                    .catch(() => renderMovieCards(movieListContainer, grouped, dateKey));
             })
             .catch(() => {
                 movieListContainer.innerHTML = `<div class="showtime-empty-state">Không thể tải lịch chiếu cho ${formatHumanDate(dateKey)}.</div>`;
@@ -112,13 +117,21 @@ function groupShowtimesByMovie(showtimes) {
     }, {});
 }
 
-function renderMovieCards(container, movies, showtimesMap, dateKey) {
-    if (!movies.length) {
-        container.innerHTML = `<div class="showtime-empty-state">Không có phim nào đang chiếu.</div>`;
+function renderMovieCards(container, showtimesMap, dateKey) {
+    const movieIds = Object.keys(showtimesMap);
+    if (!movieIds.length) {
+        container.innerHTML = `<div class="showtime-empty-state">Không có suất chiếu cho ngày ${formatHumanDate(dateKey)}.</div>`;
         return;
     }
-    const cards = movies
-        .map((movie) => buildMovieCard(movie, showtimesMap[movie.id] || []))
+    const cards = movieIds
+        .map((id) => {
+            const movie = movieCache.get(Number(id));
+            const showtimes = showtimesMap[id] || [];
+            if (!movie || !showtimes.length) {
+                return "";
+            }
+            return buildMovieCard(movie, showtimes);
+        })
         .filter(Boolean);
     if (!cards.length) {
         container.innerHTML = `<div class="showtime-empty-state">Không có suất chiếu cho ngày ${formatHumanDate(dateKey)}.</div>`;
@@ -273,4 +286,40 @@ function describeAgeRating(code) {
         default:
             return null;
     }
+}
+
+function cacheMovies(movieList = []) {
+    movieList.forEach((movie) => {
+        if (movie && Number.isFinite(Number(movie.id))) {
+            movieCache.set(Number(movie.id), movie);
+        }
+    });
+}
+
+function ensureMovieDetails(idList = []) {
+    const missing = idList
+        .map((id) => Number(id))
+        .filter((id) => Number.isFinite(id) && !movieCache.has(id));
+    if (!missing.length) {
+        return Promise.resolve();
+    }
+    return Promise.all(
+        missing.map((id) =>
+            fetch(`/api/movies/${id}`)
+                .then((response) => {
+                    if (!response.ok) {
+                        throw new Error("Failed to load movie detail");
+                    }
+                    return response.json();
+                })
+                .then((movie) => {
+                    if (movie) {
+                        movieCache.set(id, movie);
+                    }
+                })
+                .catch(() => {
+                    // ignore detail failures to avoid blocking rendering
+                })
+        )
+    );
 }

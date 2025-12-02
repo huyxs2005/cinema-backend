@@ -79,7 +79,7 @@
                         <div class="mb-3">
                             <label for="showtimeRepeatUntil" class="form-label">Lặp đến ngày</label>
                             <input type="date" id="showtimeRepeatUntil" class="form-control">
-                            <div class="form-text text-light">Để trống nếu chỉ muốn tạo trong ngày vừa chọn.</div>
+                            <div class="form-text text-light" id="showtimeRepeatHint">Để trống nếu chỉ muốn tạo trong ngày vừa chọn.</div>
                             <div class="text-danger small mt-1" id="showtimeRepeatUntilError"></div>
                         </div>
                         <div class="mb-3">
@@ -127,14 +127,6 @@
                             <div class="col-xl-4 col-lg-5 d-flex align-items-end gap-2 justify-content-lg-end flex-wrap flex-md-nowrap">
                                 <button type="submit" class="btn btn-outline-light flex-grow-1 flex-lg-grow-0">Lọc</button>
                                 <button type="button" id="showtimeFilterReset" class="btn btn-outline-secondary flex-grow-1 flex-lg-grow-0">Xóa</button>
-                                <button class="btn btn-outline-light flex-grow-1 flex-lg-grow-0"
-                                        type="button"
-                                        data-bs-toggle="collapse"
-                                        data-bs-target="#showtimeAdvancedFilters"
-                                        aria-expanded="false"
-                                        aria-controls="showtimeAdvancedFilters">
-                                    Bộ lọc nâng cao
-                                </button>
                             </div>
                         </div>
                         <div class="row mb-2">
@@ -144,30 +136,28 @@
                                 <div class="text-danger small mt-1" id="filterShowtimeMovieError"></div>
                             </div>
                         </div>
-                        <div class="collapse" id="showtimeAdvancedFilters">
-                            <div class="row g-2 align-items-end">
-                                <div class="col-md-4">
-                                    <label for="filterShowtimeAuditorium" class="form-label">Phòng chiếu</label>
-                                    <select id="filterShowtimeAuditorium" class="form-select" name="auditoriumId">
-                                        <option value="">Tất cả</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-4">
-                                    <label for="filterShowtimeStatus" class="form-label">Trạng thái</label>
-                                    <select id="filterShowtimeStatus" class="form-select" name="active">
-                                        <option value="">Tất cả</option>
-                                        <option value="true">Đang bật</option>
-                                        <option value="false">Ngừng</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-4">
-                                    <label for="filterShowtimeFrom" class="form-label">Từ ngày</label>
-                                    <input type="date" id="filterShowtimeFrom" class="form-control" name="fromDate">
-                                </div>
-                                <div class="col-md-4">
-                                    <label for="filterShowtimeTo" class="form-label">Đến ngày</label>
-                                    <input type="date" id="filterShowtimeTo" class="form-control" name="toDate">
-                                </div>
+                        <div class="row g-2 align-items-end mb-3" id="showtimeAdvancedFilters">
+                            <div class="col-md-3">
+                                <label for="filterShowtimeAuditorium" class="form-label">Phòng chiếu</label>
+                                <select id="filterShowtimeAuditorium" class="form-select" name="auditoriumId">
+                                    <option value="">Tất cả</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="filterShowtimeStatus" class="form-label">Trạng thái</label>
+                                <select id="filterShowtimeStatus" class="form-select" name="active">
+                                    <option value="">Tất cả</option>
+                                    <option value="true">Đang bật</option>
+                                    <option value="false">Ngừng</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="filterShowtimeFrom" class="form-label">Từ ngày</label>
+                                <input type="date" id="filterShowtimeFrom" class="form-control" name="fromDate">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="filterShowtimeTo" class="form-label">Đến ngày</label>
+                                <input type="date" id="filterShowtimeTo" class="form-control" name="toDate">
                             </div>
                         </div>
                     </form>

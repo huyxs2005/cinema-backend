@@ -3,6 +3,8 @@ package com.cinema.hub.backend.payment.service;
 import com.cinema.hub.backend.entity.Booking;
 import com.cinema.hub.backend.entity.BookingSeat;
 import com.cinema.hub.backend.payment.util.PaymentException;
+import com.cinema.hub.backend.util.CurrencyFormatter;
+import com.cinema.hub.backend.util.SeatTypeLabelResolver;
 import com.cinema.hub.backend.util.TimeProvider;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.WriterException;
@@ -11,11 +13,11 @@ import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
 import com.openhtmltopdf.outputdevice.helper.BaseRendererBuilder;
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.math.BigDecimal;
-import java.text.NumberFormat;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
@@ -35,7 +37,6 @@ public class PdfTicketGenerator {
 
     private static final DateTimeFormatter SHOWTIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm - dd/MM/yyyy");
     private static final DateTimeFormatter ISSUED_AT_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
-    private static final NumberFormat CURRENCY_FORMAT = NumberFormat.getInstance(new Locale("vi", "VN"));
 
     private final SpringTemplateEngine templateEngine;
     private final ResourceLoader resourceLoader;
@@ -70,13 +71,16 @@ public class PdfTicketGenerator {
                               String family,
                               int weight) {
         Resource resource = resourceLoader.getResource(resourcePath);
-        builder.useFont(() -> {
-            try {
-                return resource.getInputStream();
-            } catch (IOException ex) {
-                throw new UncheckedIOException(ex);
-            }
-        }, family, weight, BaseRendererBuilder.FontStyle.NORMAL, true);
+        try {
+            byte[] fontBytes = resource.getInputStream().readAllBytes();
+            builder.useFont(() -> new ByteArrayInputStream(fontBytes),
+                    family,
+                    weight,
+                    BaseRendererBuilder.FontStyle.NORMAL,
+                    true);
+        } catch (IOException ex) {
+            throw new UncheckedIOException(ex);
+        }
     }
 
     private TicketPdfModel buildPayload(Booking booking, List<BookingSeat> seats) throws IOException {
@@ -88,8 +92,9 @@ public class PdfTicketGenerator {
         List<String> seatPills = seats.stream()
                 .map(seat -> {
                     var seatEntity = seat.getShowtimeSeat().getSeat();
-                    String type = seatEntity.getSeatType() != null ? seatEntity.getSeatType().getName() : "Standard";
-                    return seatEntity.getRowLabel() + seatEntity.getSeatNumber() + " (" + type + ")";
+                    String source = seatEntity.getSeatType() != null ? seatEntity.getSeatType().getName() : "Standard";
+                    String localized = SeatTypeLabelResolver.localize(source);
+                    return seatEntity.getRowLabel() + seatEntity.getSeatNumber() + " (" + localized + ")";
                 })
                 .toList();
 
@@ -104,7 +109,7 @@ public class PdfTicketGenerator {
                 .auditoriumName(auditoriumName)
                 .showtime(showtime)
                 .issuedAt(ISSUED_AT_FORMAT.format(issuedAt))
-                .total(formatCurrency(total))
+                .total(CurrencyFormatter.format(total))
                 .seatDetails(seatPills)
                 .qrDataUrl(renderQrDataUri(booking.getBookingCode()))
                 .build();
@@ -116,10 +121,6 @@ public class PdfTicketGenerator {
         }
         String normalized = source.trim();
         return normalized.length() > 2 ? normalized : "Hall 01";
-    }
-
-    private String formatCurrency(BigDecimal total) {
-        return CURRENCY_FORMAT.format(total) + " đ";
     }
 
     private String renderQrDataUri(String bookingCode) throws IOException {

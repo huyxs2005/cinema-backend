@@ -35,13 +35,13 @@
                 </div>
                 <ul class="checkout-seat-list">
                     <li th:each="seat : ${checkout != null ? checkout.seats : {}}">
-                        <span th:text="${seat.label}">A1</span>
-                        <span th:text="${seat.price != null ? #numbers.formatDecimal(seat.price, 0, 0) + ' ₫' : '0 ₫'}">120.000 ₫</span>
+                        <span th:text="${seat.seatLabelWithType}">A1 (thường)</span>
+                        <span th:text="${seat.formattedPrice}">120.000 ₫</span>
                     </li>
                 </ul>
                 <div class="checkout-total-line">
                     <span>Tổng cộng</span>
-                    <strong th:text="${checkout != null ? #numbers.formatDecimal(checkout.total, 0, 0) + ' ₫' : '0 ₫'}">0 ₫</strong>
+                    <strong th:text="${checkout != null ? checkout.formattedTotal : '0 ₫'}">0 ₫</strong>
                 </div>
                 <a class="btn btn-text"
                    th:href="@{/movies/{id}(id=${checkout?.showtime?.movieId})}"
@@ -67,7 +67,6 @@
                     </div>
                 </div>
                 <p class="text-light form-grid__full">
-                    PayOS xác thực chuyển khoản qua webhook tại <code>/api/payment/webhook</code>.
                     Vui lòng giữ trang này mở đến khi hệ thống điều hướng sang trang xác nhận.
                 </p>
                 <p class="warning-text form-grid__full" id="payosError" hidden></p>

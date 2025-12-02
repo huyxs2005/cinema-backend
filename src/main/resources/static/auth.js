@@ -20,6 +20,7 @@ const PASSWORD_RULE = /^(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
 const PASSWORD_RULE_MESSAGE = "Mật khẩu phải có ít nhất 8 ký tự, bao gồm số và ký tự đặc biệt";
 const PHONE_RULE = /^\d{10,11}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const NON_ASCII_REGEX = /[^\x00-\x7F]/g;
 const StorageKeys = {
     postLoginRedirect: "cinemaPostLoginRedirect",
     seatIntent: "cinemaSeatIntent"
@@ -175,6 +176,7 @@ window.setPostLoginRedirect = setPostLoginRedirect;
 function bootAuthScripts() {
     initModals();
     initNumericOnlyInputs();
+    initEmailInputRestrictions();
     bindLoginForm();
     bindRegisterForm();
     bindForgotForm();
@@ -353,7 +355,10 @@ function bindRegisterForm() {
         if (!fullName) {
             fullName = `${firstName} ${lastName}`.trim();
         }
-        const email = document.getElementById("registerEmail").value.trim();
+        const emailInput = document.getElementById("registerEmail");
+        const sanitizedEmail = sanitizeAsciiEmail(emailInput.value);
+        emailInput.value = sanitizedEmail;
+        const email = sanitizedEmail.trim();
         const phoneInput = document.getElementById("registerPhone");
         const sanitizedPhone = sanitizePhone(phoneInput.value.trim());
         phoneInput.value = sanitizedPhone;
@@ -896,6 +901,42 @@ function validatePasswordStrength(password) {
 
 function sanitizePhone(value) {
     return (value || "").replace(/\D+/g, "");
+}
+
+function sanitizeAsciiEmail(value) {
+    if (!value) {
+        return "";
+    }
+    return value.replace(NON_ASCII_REGEX, "");
+}
+
+function initEmailInputRestrictions() {
+    const emailInput = document.getElementById("registerEmail");
+    if (!emailInput || emailInput.dataset.asciiBound === "true") {
+        return;
+    }
+    emailInput.dataset.asciiBound = "true";
+    const enforceAsciiOnly = () => {
+        const originalValue = emailInput.value;
+        const sanitized = sanitizeAsciiEmail(originalValue);
+        if (originalValue !== sanitized) {
+            const selectionStart = emailInput.selectionStart;
+            const selectionEnd = emailInput.selectionEnd;
+            emailInput.value = sanitized;
+            if (typeof selectionStart === "number" && typeof selectionEnd === "number") {
+                const newPos = Math.max(selectionStart - (originalValue.length - sanitized.length), 0);
+                emailInput.setSelectionRange(newPos, newPos);
+            }
+        }
+    };
+
+    emailInput.addEventListener("beforeinput", (event) => {
+        if (typeof event.data === "string" && NON_ASCII_REGEX.test(event.data)) {
+            event.preventDefault();
+        }
+    });
+    emailInput.addEventListener("input", enforceAsciiOnly);
+    emailInput.addEventListener("blur", enforceAsciiOnly);
 }
 
 function initNumericOnlyInputs(root = document) {

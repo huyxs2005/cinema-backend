@@ -61,6 +61,8 @@ public class MovieService {
                         .originalTitle(pair.movie().getOriginalTitle())
                         .status(pair.status().get())
                         .posterUrl(pair.movie().getPosterUrl())
+                        .releaseDate(pair.movie().getReleaseDate())
+                        .endDate(pair.movie().getEndDate())
                         .build())
                 .toList();
     }

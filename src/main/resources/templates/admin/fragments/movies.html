@@ -22,9 +22,37 @@
                                 </div>
                                 <div class="mb-3">
                                     <label for="movieDuration" class="form-label">Thời lượng (phút) <span class="text-danger">*</span></label>
-                                    <input type="number" min="1" max="900" id="movieDuration" class="form-control" inputmode="numeric" pattern="[0-9]*" maxlength="3" data-numeric-only="true" required>
+                                    <div class="numeric-stepper" data-stepper>
+                                        <input type="number"
+                                               min="1"
+                                               max="900"
+                                               id="movieDuration"
+                                               class="form-control"
+                                               inputmode="numeric"
+                                               pattern="[0-9]*"
+                                               maxlength="3"
+                                               data-numeric-only="true"
+                                               required>
+                                        <div class="numeric-stepper-controls">
+                                            <button type="button"
+                                                    class="numeric-stepper-btn numeric-stepper-btn--up"
+                                                    data-step="1"
+                                                    aria-label="T?ng th?i l??ng">
+                                                <span class="numeric-stepper-icon"></span>
+                                                <span class="visually-hidden">T?ng</span>
+                                            </button>
+                                            <button type="button"
+                                                    class="numeric-stepper-btn numeric-stepper-btn--down"
+                                                    data-step="-1"
+                                                    aria-label="Gi?m th?i l??ng">
+                                                <span class="numeric-stepper-icon"></span>
+                                                <span class="visually-hidden">Gi?m</span>
+                                            </button>
+                                        </div>
+                                    </div>
                                     <div class="text-danger small mt-1" id="movieDurationError"></div>
                                 </div>
+                                
                                 <div class="mb-3">
                                     <label for="movieAgeRating" class="form-label">Giới hạn độ tuổi <span class="text-danger">*</span></label>
                                     <select id="movieAgeRating" class="form-select" required>
@@ -66,6 +94,7 @@
                                         <button type="button" class="btn btn-outline-light" id="selectMoviePosterBtn">Chọn ảnh</button>
                                         <input type="file" id="moviePosterFile" accept="image/*" hidden>
                                     </div>
+                                    <small id="moviePosterHint" class="text-muted d-block mt-1">Chưa có poster nào</small>
                                     <div class="text-danger small mt-1" id="moviePosterError"></div>
                                 </div>
                                 <div class="mb-3">
@@ -110,63 +139,58 @@
                                     <div class="col-lg-5 col-md-4 d-flex align-items-end gap-2 justify-content-end">
                                         <button type="submit" class="btn btn-outline-light flex-grow-1">Lọc</button>
                                         <button type="button" class="btn btn-outline-secondary flex-grow-1" id="movieFilterReset">Xóa lọc</button>
-                                        <button class="btn btn-outline-light flex-grow-1" type="button" data-bs-toggle="collapse" data-bs-target="#movieAdvancedFilters" aria-expanded="false" aria-controls="movieAdvancedFilters">
-                                            Bộ lọc nâng cao
-                                        </button>
                                     </div>
                                 </div>
-                                <div class="collapse mb-3" id="movieAdvancedFilters">
-                                    <div class="row g-2 align-items-end">
-                                        <div class="col-lg-4 col-md-6">
-                                            <label for="movieDurationOrder" class="form-label">Thời lượng</label>
-                                            <select class="form-select" id="movieDurationOrder">
-                                                <option value="">Mặc định</option>
-                                                <option value="length_asc">Tăng dần</option>
-                                                <option value="length_desc">Giảm dần</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-lg-4 col-md-6">
-                                            <label for="movieGenreFilter" class="form-label">Thể loại</label>
-                                            <select class="form-select" id="movieGenreFilter">
-                                                <option value="">Tất cả</option>
-                                                <option value="Bí ẩn">Bí ẩn</option>
-                                                <option value="Ca nhạc">Ca nhạc</option>
-                                                <option value="Chính kịch">Chính kịch</option>
-                                                <option value="Gia đình">Gia đình</option>
-                                                <option value="Giật gân (Thriller)">Giật gân (Thriller)</option>
-                                                <option value="Hài">Hài</option>
-                                                <option value="Hành động">Hành động</option>
-                                                <option value="Hoạt hình">Hoạt hình</option>
-                                                <option value="Hồi hộp (Suspense)">Hồi hộp (Suspense)</option>
-                                                <option value="Khoa học viễn tưởng">Khoa học viễn tưởng</option>
-                                                <option value="Kinh dị">Kinh dị</option>
-                                                <option value="Phiêu lưu">Phiêu lưu</option>
-                                                <option value="Tâm lý">Tâm lý</option>
-                                                <option value="Thần thoại">Thần thoại</option>
-                                                <option value="Tình cảm">Tình cảm</option>
-                                                <option value="Tội phạm">Tội phạm</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-lg-4 col-md-6">
-                                            <label for="movieStatusFilter" class="form-label">Trạng thái</label>
-                                            <select class="form-select" id="movieStatusFilter">
-                                                <option value="">Tất cả</option>
-                                                <option value="NowShowing">Đang chiếu</option>
-                                                <option value="ComingSoon">Sắp chiếu</option>
-                                                <option value="Stopped">Ngừng chiếu</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-lg-4 col-md-6">
-                                            <label for="movieAgeFilter" class="form-label">Giới hạn tuổi</label>
-                                            <select class="form-select" id="movieAgeFilter">
-                                                <option value="">Tất cả</option>
-                                                <option value="P">P - Mọi lứa tuổi</option>
-                                                <option value="K">K - Cần người giám hộ</option>
-                                                <option value="T13">T13 - 13+</option>
-                                                <option value="T16">T16 - 16+</option>
-                                                <option value="T18">T18 - 18+</option>
-                                            </select>
-                                        </div>
+                                <div class="row g-2 align-items-end mb-3">
+                                    <div class="col-lg-3 col-md-6">
+                                        <label for="movieDurationOrder" class="form-label">Thời lượng</label>
+                                        <select class="form-select" id="movieDurationOrder">
+                                            <option value="">Mặc định</option>
+                                            <option value="length_asc">Tăng dần</option>
+                                            <option value="length_desc">Giảm dần</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-lg-3 col-md-6">
+                                        <label for="movieGenreFilter" class="form-label">Thể loại</label>
+                                        <select class="form-select" id="movieGenreFilter">
+                                            <option value="">Tất cả</option>
+                                            <option value="Bí ẩn">Bí ẩn</option>
+                                            <option value="Ca nhạc">Ca nhạc</option>
+                                            <option value="Chính kịch">Chính kịch</option>
+                                            <option value="Gia đình">Gia đình</option>
+                                            <option value="Giật gân (Thriller)">Giật gân (Thriller)</option>
+                                            <option value="Hài">Hài</option>
+                                            <option value="Hành động">Hành động</option>
+                                            <option value="Hoạt hình">Hoạt hình</option>
+                                            <option value="Hồi hộp (Suspense)">Hồi hộp (Suspense)</option>
+                                            <option value="Khoa học viễn tưởng">Khoa học viễn tưởng</option>
+                                            <option value="Kinh dị">Kinh dị</option>
+                                            <option value="Phiêu lưu">Phiêu lưu</option>
+                                            <option value="Tâm lý">Tâm lý</option>
+                                            <option value="Thần thoại">Thần thoại</option>
+                                            <option value="Tình cảm">Tình cảm</option>
+                                            <option value="Tội phạm">Tội phạm</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-lg-3 col-md-6">
+                                        <label for="movieStatusFilter" class="form-label">Trạng thái</label>
+                                        <select class="form-select" id="movieStatusFilter">
+                                            <option value="">Tất cả</option>
+                                            <option value="NowShowing">Đang chiếu</option>
+                                            <option value="ComingSoon">Sắp chiếu</option>
+                                            <option value="Stopped">Ngừng chiếu</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-lg-3 col-md-6">
+                                        <label for="movieAgeFilter" class="form-label">Giới hạn tuổi</label>
+                                        <select class="form-select" id="movieAgeFilter">
+                                            <option value="">Tất cả</option>
+                                            <option value="P">P - Mọi lứa tuổi</option>
+                                            <option value="K">K - Cần người giám hộ</option>
+                                            <option value="T13">T13 - 13+</option>
+                                            <option value="T16">T16 - 16+</option>
+                                            <option value="T18">T18 - 18+</option>
+                                        </select>
                                     </div>
                                 </div>
                             </form>

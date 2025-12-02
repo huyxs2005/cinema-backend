@@ -26,6 +26,8 @@ const showtimeDataBus = window.AdminDataBus || {
     subscribe: () => () => {}
 };
 
+const SHOWTIME_REPEAT_HINT_DEFAULT = "Để trống nếu chỉ muốn tạo trong ngày vừa chọn.";
+
 const showtimeState = {
     movies: [],
     auditoriums: [],
@@ -36,7 +38,8 @@ const showtimeState = {
     groupedShowtimes: [],
     selectedMovieId: null,
     filterSelectedMovieId: null,
-    timeSuggestionButtons: []
+    timeSuggestionButtons: [],
+    baseMinDate: getVietnamDate(1)
 };
 
 const repeatDayPresets = {
@@ -89,6 +92,7 @@ async function initShowtimeAdmin() {
     initFilterShowtimeMovieSearch();
     await loadShowtimeOptions();
     bindShowtimeForm();
+    applyBaseStartDateDefaults();
     initTimeSuggestions();
     bindShowtimeFilters();
     fetchShowtimes();
@@ -230,6 +234,15 @@ function bindShowtimeForm() {
     const resetBtn = document.getElementById("showtimeResetBtn");
     form.addEventListener("submit", submitShowtimeForm);
     resetBtn?.addEventListener("click", resetShowtimeForm);
+    const formAuditoriumSelect = document.getElementById("showtimeAuditoriumId");
+    const filterAuditoriumSelect = document.getElementById("filterShowtimeAuditorium");
+    if (formAuditoriumSelect && filterAuditoriumSelect) {
+        formAuditoriumSelect.addEventListener("change", () => {
+            const selectedValue = formAuditoriumSelect.value || "";
+            filterAuditoriumSelect.value = selectedValue;
+            fetchShowtimes();
+        });
+    }
 }
 
 function bindShowtimeFilters() {
@@ -777,13 +790,17 @@ function setFormSelectedMovie(movieId) {
     }
     const searchInput = document.getElementById("showtimeMovieSearch");
     if (searchInput) {
+        const editingId = document.getElementById("showtimeId")?.value;
         if (movieId) {
             const movie = showtimeState.movieMap.get(String(movieId));
             searchInput.value = movie
                     ? movie.title || movie.originalTitle || ""
                     : "";
+            applyMovieScheduleHints(movie);
         } else {
             searchInput.value = "";
+            applyBaseStartDateDefaults({ preserveValue: Boolean(editingId) });
+            resetMovieScheduleHints();
         }
     }
     updateShowtimeMoviePreview("showtimeMoviePreview", movieId);
@@ -974,7 +991,8 @@ async function submitShowtimeForm(event) {
     const payload = buildShowtimePayload();
     const startDateValue = document.getElementById("showtimeStartDate")?.value || "";
     const startTimeValue = document.getElementById("showtimeStartTime")?.value || "";
-    const validationErrors = validateShowtimePayload(payload, { startDateValue, startTimeValue });
+    const currentId = document.getElementById("showtimeId").value;
+    const validationErrors = validateShowtimePayload(payload, { startDateValue, startTimeValue, currentId });
     clearShowtimeErrors();
     const messageBox = document.getElementById("showtimeFormMessage");
     messageBox.textContent = "";
@@ -993,7 +1011,6 @@ async function submitShowtimeForm(event) {
     }
     setSubmittingState(true, submitBtn);
 
-    const currentId = document.getElementById("showtimeId").value;
     const url = currentId ? showtimeApi.update(currentId) : showtimeApi.create;
     const method = currentId ? "PUT" : "POST";
 
@@ -1039,6 +1056,7 @@ function validateShowtimePayload(payload, options = {}) {
     const errors = [];
     const startDateValue = options.startDateValue || "";
     const startTimeValue = options.startTimeValue || "";
+    const currentId = options.currentId || null;
     const normalizedRepeatMode = (payload.repeatMode || "NONE").toUpperCase();
     if (!payload.movieId) {
         errors.push({ field: "showtimeMovieSearch", message: "Vui lòng chọn phim *" });
@@ -1060,11 +1078,20 @@ function validateShowtimePayload(payload, options = {}) {
     if (!payload.startTime && startDateValue && startTimeValue) {
         errors.push({ field: "showtimeStartTime", message: "Giờ bắt đầu không hợp lệ" });
     }
+    const baseMin = showtimeState.baseMinDate;
+    if (!currentId && baseMin && startDateValue && startDateValue < baseMin) {
+        errors.push({
+            field: "showtimeStartDate",
+            message: `Ngày bắt đầu phải từ ${formatDisplayDate(baseMin)} trở đi`
+        });
+    }
     if (payload.repeatUntil) {
         if (!payload.startTime) {
             errors.push({ field: "showtimeRepeatUntil", message: "Vui lòng chọn giờ bắt đầu trước *" });
         } else if (isRepeatUntilBeforeStart(payload.startTime, payload.repeatUntil)) {
             errors.push({ field: "showtimeRepeatUntil", message: "Ngày kết thúc phải từ ngày bắt đầu trở đi *" });
+        } else if (exceedsMovieEndDate(payload.repeatUntil)) {
+            errors.push({ field: "showtimeRepeatUntil", message: "Không thể lặp quá ngày ngừng chiếu của phim" });
         }
     }
     if (normalizedRepeatMode !== "NONE" && startDateValue) {
@@ -1133,6 +1160,7 @@ function resetShowtimeForm() {
     const form = document.getElementById("showtimeForm");
     if (!form) return;
     form.reset();
+    applyBaseStartDateDefaults();
     const repeatSelect = document.getElementById("showtimeRepeatMode");
     if (repeatSelect) {
         repeatSelect.value = "NONE";
@@ -1335,4 +1363,174 @@ function rangeHasAllowedDay(startDateValue, endDateValue, allowedDays) {
         cursor.setDate(cursor.getDate() + 1);
     }
     return false;
+}
+
+function applyMovieScheduleHints(movie) {
+    const startDateInput = document.getElementById("showtimeStartDate");
+    const repeatUntilInput = document.getElementById("showtimeRepeatUntil");
+    const repeatHint = document.getElementById("showtimeRepeatHint");
+    const editingId = document.getElementById("showtimeId")?.value;
+    const releaseDate = normalizeDate(movie?.releaseDate);
+    const endDate = normalizeDate(movie?.endDate);
+    const baseMin = showtimeState.baseMinDate || null;
+    const effectiveMin = releaseDate ? maxDateString(releaseDate, baseMin) : baseMin;
+
+    if (startDateInput) {
+        if (effectiveMin) {
+            startDateInput.min = effectiveMin;
+        }
+        if (!editingId) {
+            const target = effectiveMin || baseMin;
+            if (target && (!startDateInput.value || startDateInput.value < target)) {
+                startDateInput.value = target;
+            }
+        } else if (effectiveMin && startDateInput.value && startDateInput.value < effectiveMin) {
+            startDateInput.value = effectiveMin;
+        }
+    }
+
+    if (repeatUntilInput) {
+        repeatUntilInput.max = endDate || "";
+        if (!editingId && !repeatUntilInput.value && endDate) {
+            repeatUntilInput.value = endDate;
+        }
+        if (repeatUntilInput.value && endDate && repeatUntilInput.value > endDate) {
+            repeatUntilInput.value = endDate;
+        }
+    }
+
+    if (repeatHint) {
+        repeatHint.textContent = endDate
+            ? `Không lặp quá ngày ngừng chiếu: ${formatDisplayDate(endDate)}`
+            : SHOWTIME_REPEAT_HINT_DEFAULT;
+    }
+}
+
+function resetMovieScheduleHints() {
+    applyBaseStartDateDefaults({ preserveValue: Boolean(document.getElementById("showtimeId")?.value) });
+    const repeatUntilInput = document.getElementById("showtimeRepeatUntil");
+    if (repeatUntilInput) {
+        repeatUntilInput.max = "";
+        repeatUntilInput.value = "";
+    }
+    const repeatHint = document.getElementById("showtimeRepeatHint");
+    if (repeatHint) {
+        repeatHint.textContent = SHOWTIME_REPEAT_HINT_DEFAULT;
+    }
+}
+
+function applyBaseStartDateDefaults(options = {}) {
+    const startDateInput = document.getElementById("showtimeStartDate");
+    if (!startDateInput) {
+        return;
+    }
+    const baseMin = showtimeState.baseMinDate || "";
+    if (baseMin) {
+        startDateInput.min = baseMin;
+    }
+    const preserve = Boolean(options.preserveValue);
+    if (!baseMin) {
+        return;
+    }
+    if (
+        !preserve ||
+        !startDateInput.value ||
+        startDateInput.value < baseMin
+    ) {
+        startDateInput.value = baseMin;
+    }
+}
+
+function normalizeDate(value) {
+    if (!value) {
+        return "";
+    }
+    if (typeof value === "string") {
+        return value.includes("T") ? value.split("T")[0] : value;
+    }
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+        return value.toISOString().split("T")[0];
+    }
+    return "";
+}
+
+function formatDisplayDate(dateString) {
+    if (!dateString) {
+        return "";
+    }
+    try {
+        const date = new Date(`${dateString}T00:00:00`);
+        if (Number.isNaN(date.getTime())) {
+            return dateString;
+        }
+        return date.toLocaleDateString("vi-VN");
+    } catch {
+        return dateString;
+    }
+}
+
+function maxDateString(a, b) {
+    if (!a && !b) {
+        return "";
+    }
+    if (!a) {
+        return b;
+    }
+    if (!b) {
+        return a;
+    }
+    const comparison = compareDateStrings(a, b);
+    if (comparison === null || comparison === 0) {
+        return a;
+    }
+    return comparison > 0 ? a : b;
+}
+
+function compareDateStrings(a, b) {
+    if (!a || !b) {
+        return null;
+    }
+    const dateA = new Date(`${a}T00:00:00`);
+    const dateB = new Date(`${b}T00:00:00`);
+    if (Number.isNaN(dateA.getTime()) || Number.isNaN(dateB.getTime())) {
+        return null;
+    }
+    if (dateA.getTime() === dateB.getTime()) {
+        return 0;
+    }
+    return dateA.getTime() > dateB.getTime() ? 1 : -1;
+}
+
+function getVietnamDate(daysAhead = 0) {
+    const now = new Date();
+    const vnString = now.toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh" });
+    const vnDate = new Date(vnString);
+    vnDate.setDate(vnDate.getDate() + Number(daysAhead || 0));
+    return formatDateInputValue(vnDate);
+}
+
+function formatDateInputValue(date) {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+        return "";
+    }
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+}
+
+function exceedsMovieEndDate(repeatDate) {
+    const movieId = document.getElementById("showtimeMovieId")?.value;
+    if (!movieId) {
+        return false;
+    }
+    const movie = showtimeState.movieMap.get(String(movieId));
+    if (!movie?.endDate) {
+        return false;
+    }
+    const endDate = normalizeDate(movie.endDate);
+    if (!endDate) {
+        return false;
+    }
+    return repeatDate > endDate;
 }

@@ -46,7 +46,7 @@
                     </div>
                     <div>
                         <span>Thành tiền</span>
-                        <strong th:text="${booking.total}">600.000 đ</strong>
+                        <strong th:text="${booking.formattedTotal}">600.000 đ</strong>
                     </div>
                 </div>
 
@@ -64,21 +64,13 @@
 
                 <div class="confirmation__actions">
                     <a class="btn btn-primary" th:href="@{/profile(tab='history')}">Xem lịch sử mua vé</a>
-                    <a class="btn confirmation-btn-outline" th:href="@{/movies/showtimes}">
+                    <a class="btn confirmation-btn-outline"
+                       th:href="${booking.movieId != null} ? @{/movies/{id}(id=${booking.movieId})} : @{/showtimes}">
                         <svg viewBox="0 0 24 24" aria-hidden="true">
                             <path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
                         <span>Đặt suất khác</span>
                     </a>
-                    <button class="btn confirmation-btn-ghost" type="button" onclick="window.print()">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M7 9V4h10v5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                            <path d="M6 14h12v6H6z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                            <path d="M6 11H5a2 2 0 0 0-2 2v4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                            <circle cx="18" cy="12" r="1" />
-                        </svg>
-                        <span>In vé</span>
-                    </button>
                 </div>
             </div>
         </div>
@@ -86,5 +78,6 @@
 </main>
 
 <div th:replace="~{fragments/header :: siteFooter}"></div>
+<script th:src="@{/auth.js}"></script>
 </body>
 </html>

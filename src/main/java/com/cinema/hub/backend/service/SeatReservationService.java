@@ -12,9 +12,10 @@ import com.cinema.hub.backend.entity.Booking;
 import com.cinema.hub.backend.entity.BookingSeat;
 import com.cinema.hub.backend.entity.Seat;
 import com.cinema.hub.backend.entity.SeatHold;
+import com.cinema.hub.backend.entity.Showtime;
+import com.cinema.hub.backend.entity.ShowtimeSeat;
 import com.cinema.hub.backend.entity.Ticket;
 import com.cinema.hub.backend.entity.UserAccount;
-import com.cinema.hub.backend.entity.ShowtimeSeat;
 import com.cinema.hub.backend.entity.enums.BookingStatus;
 import com.cinema.hub.backend.entity.enums.PaymentStatus;
 import com.cinema.hub.backend.entity.enums.SeatHoldStatus;
@@ -130,9 +131,11 @@ public class SeatReservationService {
                 .map(bs -> {
                     var seat = bs.getShowtimeSeat().getSeat();
                     String label = seat.getRowLabel() + seat.getSeatNumber();
+                    String seatTypeName = seat.getSeatType() != null ? seat.getSeatType().getName() : null;
                     return SeatSelectionItemView.builder()
                             .label(label)
                             .price(bs.getFinalPrice())
+                            .seatType(seatTypeName)
                             .build();
                 })
                 .sorted(Comparator.comparing(SeatSelectionItemView::getLabel))
@@ -192,6 +195,8 @@ public class SeatReservationService {
         UserAccount user = loadUser(request.getUserId());
         Set<Integer> disabledSeatIds = loadDisabledSeatIds();
         ensureHoldSeatsEnabled(holds, disabledSeatIds);
+
+        ensureShowtimeAcceptsBookings(holds.get(0).getShowtimeSeat().getShowtime(), now);
 
         Booking booking = buildBookingFromHolds(holds, user, request.getPaymentMethod(), now);
         booking = bookingRepository.save(booking);
@@ -262,6 +267,11 @@ public class SeatReservationService {
 
         List<com.cinema.hub.backend.entity.ShowtimeSeat> lockedSeats =
                 showtimeSeatRepository.lockSeatsForHold(showtimeId, seatIds);
+
+        if (lockedSeats.isEmpty()) {
+            throw new SeatSelectionException("Không tìm thấy ghế hợp lệ cho suất chiếu.");
+        }
+        ensureShowtimeAcceptsBookings(lockedSeats.get(0).getShowtime(), now);
 
         if (lockedSeats.size() != seatIds.size()) {
             throw new SeatSelectionException("One or more seats do not belong to the showtime");
@@ -419,9 +429,11 @@ public class SeatReservationService {
     private SeatSelectionItemView toSeatSelectionItem(SeatHold hold) {
         var seat = hold.getShowtimeSeat().getSeat();
         String label = seat.getRowLabel() + seat.getSeatNumber();
+        String seatTypeName = seat.getSeatType() != null ? seat.getSeatType().getName() : null;
         return SeatSelectionItemView.builder()
                 .label(label)
                 .price(hold.getShowtimeSeat().getEffectivePrice())
+                .seatType(seatTypeName)
                 .build();
     }
 
@@ -575,6 +587,16 @@ public class SeatReservationService {
                 log.info("Released pending booking {} for user {}", booking.getBookingCode(),
                         booking.getUser() != null ? booking.getUser().getId() : null);
             });
+        }
+    }
+
+    private void ensureShowtimeAcceptsBookings(Showtime showtime, OffsetDateTime now) {
+        if (showtime == null || showtime.getStartTime() == null) {
+            throw new SeatSelectionException("Không thể xác định suất chiếu để giữ ghế.");
+        }
+        OffsetDateTime start = showtime.getStartTime().atOffset(TimeProvider.VN_ZONE_OFFSET);
+        if (!start.isAfter(now)) {
+            throw new SeatSelectionException("Suất chiếu đã bắt đầu hoặc kết thúc. Không thể giữ hoặc đặt ghế.");
         }
     }
 }

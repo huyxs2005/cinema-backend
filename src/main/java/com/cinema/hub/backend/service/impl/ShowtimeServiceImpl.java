@@ -181,7 +181,11 @@ public class ShowtimeServiceImpl implements ShowtimeService {
             start = end;
             end = temp;
         }
+        LocalDateTime now = TimeProvider.now().toLocalDateTime();
         LocalDateTime fromDateTime = start.atStartOfDay();
+        if (fromDateTime.isBefore(now)) {
+            fromDateTime = now;
+        }
         LocalDateTime toDateTime = end.plusDays(1).atStartOfDay().minusSeconds(1);
         return showtimeRepository
                 .findByMovie_IdAndActiveTrueAndStartTimeBetweenOrderByStartTimeAsc(movieId, fromDateTime, toDateTime)
@@ -196,9 +200,12 @@ public class ShowtimeServiceImpl implements ShowtimeService {
         LocalDate target = date != null ? date : LocalDate.now(TimeProvider.VN_ZONE_ID);
         LocalDateTime from = target.atStartOfDay();
         LocalDateTime to = target.plusDays(1).atStartOfDay().minusSeconds(1);
+        LocalDateTime now = TimeProvider.now().toLocalDateTime();
+        boolean isToday = target.equals(now.toLocalDate());
         return showtimeRepository
                 .findByActiveTrueAndStartTimeBetweenOrderByStartTimeAsc(from, to)
                 .stream()
+                .filter(showtime -> !isToday || isFutureOrPresent(showtime.getStartTime(), now))
                 .map(showtimeMapper::toResponse)
                 .toList();
     }
@@ -464,6 +471,13 @@ public class ShowtimeServiceImpl implements ShowtimeService {
     private boolean isWeekend(DayOfWeek dayOfWeek) {
         return dayOfWeek == DayOfWeek.SATURDAY
                 || dayOfWeek == DayOfWeek.SUNDAY;
+    }
+
+    private boolean isFutureOrPresent(LocalDateTime startTime, LocalDateTime now) {
+        if (startTime == null) {
+            return false;
+        }
+        return !startTime.isBefore(now);
     }
 
     private boolean isWeekday(DayOfWeek dayOfWeek) {

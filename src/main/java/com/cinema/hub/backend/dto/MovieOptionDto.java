@@ -1,5 +1,6 @@
 package com.cinema.hub.backend.dto;
 
+import java.time.LocalDate;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -18,4 +19,6 @@ public class MovieOptionDto {
     private String originalTitle;
     private String status;
     private String posterUrl;
+    private LocalDate releaseDate;
+    private LocalDate endDate;
 }

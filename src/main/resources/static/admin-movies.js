@@ -36,6 +36,28 @@ const FALLBACK_GENRES = [
     "Giật gân (Thriller)"
 ];
 
+function isValidImageFile(file) {
+    if (!file) return false;
+    if (file.type && file.type.toLowerCase().startsWith("image/")) {
+        return true;
+    }
+    const name = file.name || "";
+    return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(name);
+}
+
+function notifyInvalidImageSelection() {
+    const message = "Vui lòng chọn tệp hình ảnh (PNG, JPG, WebP, SVG...).";
+    if (typeof openAdminNotice === "function") {
+        openAdminNotice({
+            title: "Tệp không hợp lệ",
+            message,
+            variant: "warning"
+        });
+    } else {
+        alert(message);
+    }
+}
+
 let genreOptions = [];
 let genreDropdownInitialized = false;
 
@@ -274,11 +296,22 @@ function resetMovieForm() {
     const form = document.getElementById("movieForm");
     if (!form) return;
     form.reset();
-    document.getElementById("movieId").value = "";
-    document.getElementById("movieFormTitle").textContent = "Thêm phim mới";
-    document.getElementById("movieFormMessage").textContent = "";
-    document.getElementById("moviePoster").value = "";
-    document.getElementById("moviePosterHint").textContent = "Chưa có poster nào";
+    const idInput = document.getElementById("movieId");
+    if (idInput) idInput.value = "";
+    const titleEl = document.getElementById("movieFormTitle");
+    if (titleEl) titleEl.textContent = "Thêm phim mới";
+    const messageEl = document.getElementById("movieFormMessage");
+    if (messageEl) {
+        messageEl.textContent = "";
+        messageEl.classList.remove("text-warning", "text-success");
+    }
+    const posterInput = document.getElementById("moviePoster");
+    if (posterInput) posterInput.value = "";
+    const posterHint = document.getElementById("moviePosterHint");
+    if (posterHint) {
+        posterHint.textContent = "Chưa có poster nào";
+        posterHint.classList.remove("text-danger");
+    }
     setSelectedGenres([]);
     clearFieldErrors();
 }
@@ -509,8 +542,23 @@ async function performDeleteMovie(id) {
 
 async function handlePosterUpload(event) {
     const file = event.target.files?.[0];
-    if (!file) return;
     const hint = document.getElementById("moviePosterHint");
+    if (!file) {
+        if (hint) {
+            hint.textContent = "Chưa chọn poster.";
+            hint.classList.remove("text-danger");
+        }
+        return;
+    }
+    if (!isValidImageFile(file)) {
+        notifyInvalidImageSelection();
+        if (hint) {
+            hint.textContent = "Vui lòng chọn tệp hình ảnh (PNG, JPG, WebP, SVG...).";
+            hint.classList.add("text-danger");
+        }
+        event.target.value = "";
+        return;
+    }
     if (hint) {
         hint.textContent = "Đang tải poster...";
         hint.classList.remove("text-danger");

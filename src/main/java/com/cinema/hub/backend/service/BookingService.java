@@ -139,6 +139,7 @@ public class BookingService {
         return BookingConfirmationView.builder()
                 .bookingCode(booking.getBookingCode())
                 .movieTitle(booking.getShowtime().getMovie().getTitle())
+                .movieId(booking.getShowtime().getMovie().getId())
                 .theaterName(booking.getShowtime().getAuditorium().getName())
                 .auditoriumName(booking.getShowtime().getAuditorium().getName())
                 .format(resolveBookingFormat(booking))

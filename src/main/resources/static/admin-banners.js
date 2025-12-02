@@ -14,6 +14,28 @@ const bannerDataBus = window.AdminDataBus || {
 
 const bannerTextCompare = new Intl.Collator("vi", { sensitivity: "base" });
 
+function isValidImageFile(file) {
+    if (!file) return false;
+    if (file.type && file.type.toLowerCase().startsWith("image/")) {
+        return true;
+    }
+    const name = file.name || "";
+    return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(name);
+}
+
+function notifyInvalidImageSelection() {
+    const message = "Vui lòng chọn tệp hình ảnh (PNG, JPG, WebP, SVG...).";
+    if (typeof openAdminNotice === "function") {
+        openAdminNotice({
+            title: "Tệp không hợp lệ",
+            message,
+            variant: "warning"
+        });
+    } else {
+        alert(message);
+    }
+}
+
 const movieOptionsMap = new Map();
 let allMovieOptions = [];
 let movieSelectReady = false;
@@ -875,8 +897,17 @@ async function performDeleteBanner(id) {
 
 async function handleBannerImageSelection(event) {
     const file = event.target.files?.[0];
-    if (!file) return;
     const hint = document.getElementById("imagePathHint");
+    if (!file) return;
+    if (!isValidImageFile(file)) {
+        notifyInvalidImageSelection();
+        if (hint) {
+            hint.textContent = "Vui lòng chọn tệp hình ảnh (PNG, JPG, WebP, SVG...).";
+            hint.classList.add("text-warning");
+        }
+        event.target.value = "";
+        return;
+    }
     if (hint) {
         hint.textContent = "Đang tải ảnh...";
         hint.classList.remove("text-warning");

@@ -30,6 +30,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
@@ -160,8 +162,23 @@ public class PaymentService {
         initLog.setRawMessage(rawPayload);
         paymentLogRepository.save(initLog);
 
-        if (StringUtils.hasText(email)) {
-            ticketEmailService.sendTicket(booking.getId(), email);
+        if (StringUtils.hasText(email) && TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    try {
+                        ticketEmailService.sendTicket(booking.getId(), email);
+                    } catch (Exception ex) {
+                        log.error("Unable to send ticket email for booking {}", booking.getBookingCode(), ex);
+                    }
+                }
+            });
+        } else if (StringUtils.hasText(email)) {
+            try {
+                ticketEmailService.sendTicket(booking.getId(), email);
+            } catch (Exception ex) {
+                log.error("Unable to send ticket email for booking {}", booking.getBookingCode(), ex);
+            }
         }
 
         log.info("Payment success recorded for booking={}, orderCode={}",

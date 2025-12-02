@@ -2,7 +2,6 @@ package com.cinema.hub.backend.payment.model;
 
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.util.StringUtils;
@@ -19,9 +18,12 @@ public class PaymentCheckoutRequest {
 
     private String phone;
 
-    @NotBlank
     @Email
     private String email;
+
+    public void setEmail(String email) {
+        this.email = StringUtils.hasText(email) ? email.trim() : null;
+    }
 
     @AssertTrue(message = "Cần cung cấp holdToken hoặc bookingId")
     public boolean isTargetProvided() {

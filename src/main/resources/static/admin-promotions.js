@@ -29,6 +29,15 @@ const promotionState = {
 
 const promotionTextCompare = new Intl.Collator("vi", { sensitivity: "base" });
 
+function isValidImageFile(file) {
+    if (!file) return false;
+    if (file.type && file.type.toLowerCase().startsWith("image/")) {
+        return true;
+    }
+    const name = file.name || "";
+    return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(name);
+}
+
 var promotionDebounceFactory = window.__ADMIN_DEBOUNCE_FACTORY__;
 if (typeof promotionDebounceFactory !== "function") {
     promotionDebounceFactory = function (fn, delay = 300) {
@@ -415,6 +424,15 @@ function deletePromotion(id) {
 async function handlePromotionUpload(fileInput, targetInputId) {
     if (!fileInput?.files?.length) return;
     const file = fileInput.files[0];
+    if (!isValidImageFile(file)) {
+        openAdminNotice?.({
+            title: "Thông báo",
+            message: "Vui lòng chọn tệp hình ảnh (PNG, JPG, WebP, SVG...).",
+            variant: "warning"
+        });
+        fileInput.value = "";
+        return;
+    }
     const formData = new FormData();
     formData.append("file", file);
     try {

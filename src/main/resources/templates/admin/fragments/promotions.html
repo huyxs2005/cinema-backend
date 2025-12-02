@@ -1,4 +1,4 @@
-<section id="crud-promotions" class="admin-tab-panel" th:fragment="promotions-panel">
+﻿<section id="crud-promotions" class="admin-tab-panel" th:fragment="promotions-panel">
             <div class="row g-4">
                 <div class="col-lg-4">
                     <div class="card bg-dark text-light shadow">
@@ -71,34 +71,24 @@
                                         <button type="button" id="promotionFilterApplyBtn" class="btn btn-outline-light flex-grow-1">Lọc</button>
                                         <button type="button" id="promotionFilterResetBtn" class="btn btn-outline-secondary flex-grow-1">Xóa lọc</button>
                                     </div>
-                                    <button type="button"
-                                            class="btn btn-outline-light ms-lg-auto text-nowrap"
-                                            data-bs-toggle="collapse"
-                                            data-bs-target="#promotionAdvancedFilters"
-                                            aria-expanded="false"
-                                            aria-controls="promotionAdvancedFilters">
-                                        Bộ lọc nâng cao
-                                    </button>
                                 </div>
                             </div>
-                            <div class="collapse" id="promotionAdvancedFilters">
-                                <div class="row g-2 mb-3">
-                                    <div class="col-md-4">
-                                        <label for="promotionStatus" class="form-label">Trạng thái</label>
-                                        <select id="promotionStatus" class="form-select">
-                                            <option value="">Tất cả</option>
-                                            <option value="true">Đang hiển thị</option>
-                                            <option value="false">Đã tắt</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label for="promotionFromDate" class="form-label">Từ ngày</label>
-                                        <input type="date" id="promotionFromDate" class="form-control">
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label for="promotionToDate" class="form-label">Đến ngày</label>
-                                        <input type="date" id="promotionToDate" class="form-control">
-                                    </div>
+                            <div class="row g-2 mb-3" id="promotionAdvancedFilters">
+                                <div class="col-md-4">
+                                    <label for="promotionStatus" class="form-label">Trạng thái</label>
+                                    <select id="promotionStatus" class="form-select">
+                                        <option value="">Tất cả</option>
+                                        <option value="true">Đang hiện</option>
+                                        <option value="false">Đã tắt</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="promotionFromDate" class="form-label">Từ ngày</label>
+                                    <input type="date" id="promotionFromDate" class="form-control">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="promotionToDate" class="form-label">Đến ngày</label>
+                                    <input type="date" id="promotionToDate" class="form-control">
                                 </div>
                             </div>
                             <div class="table-responsive">
@@ -126,3 +116,4 @@
                 </div>
             </div>
         </section>
+

@@ -2777,6 +2777,11 @@ body {
     color: #dee2e6;
 }
 
+.showtime-status-badge.status-ended {
+    background-color: rgba(148, 163, 184, 0.2);
+    color: #cbd5f5;
+}
+
 .showtime-empty-state {
     text-align: center;
     padding: 1rem;

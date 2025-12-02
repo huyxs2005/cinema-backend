@@ -273,6 +273,7 @@ public class ShowtimeServiceImpl implements ShowtimeService {
     private ShowtimeOccurrenceResponse toOccurrenceResponse(Showtime showtime) {
         LocalDateTime start = showtime.getStartTime();
         LocalDate showDate = start != null ? start.toLocalDate() : null;
+        LocalDateTime end = showtime.getEndTime();
         Auditorium auditorium = showtime.getAuditorium();
         Movie movie = showtime.getMovie();
         return new ShowtimeOccurrenceResponse(
@@ -283,10 +284,22 @@ public class ShowtimeServiceImpl implements ShowtimeService {
                 auditorium != null ? auditorium.getName() : null,
                 showtime.getActive(),
                 start,
-                showtime.getEndTime(),
+                end,
+                hasShowtimeEnded(start, end),
                 movie != null ? movie.getId() : null,
                 movie != null ? movie.getTitle() : null,
                 movie != null ? movie.getOriginalTitle() : null);
+    }
+
+    private boolean hasShowtimeEnded(LocalDateTime startTime, LocalDateTime endTime) {
+        LocalDateTime now = TimeProvider.now().toLocalDateTime();
+        if (endTime != null) {
+            return !endTime.isAfter(now);
+        }
+        if (startTime != null) {
+            return startTime.isBefore(now);
+        }
+        return false;
     }
 
     private String formatDayLabel(DayOfWeek dayOfWeek) {

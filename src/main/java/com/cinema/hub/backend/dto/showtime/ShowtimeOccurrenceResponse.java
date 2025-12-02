@@ -12,6 +12,7 @@ public record ShowtimeOccurrenceResponse(
         Boolean active,
         LocalDateTime startTime,
         LocalDateTime endTime,
+        Boolean ended,
         Integer movieId,
         String movieTitle,
         String movieOriginalTitle) {

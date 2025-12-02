@@ -105,6 +105,7 @@
         let paymentStatusIntervalId = null;
         let holdCountdownIntervalId = null;
         let qrCountdownIntervalId = null;
+        let holdExpiredHandled = false;
 
         const clearPayosError = () => {
             if (!payosErrorEl) {
@@ -130,6 +131,21 @@
             regenerateQrButton.textContent = busy ? 'Đang xử lý...' : 'Tạo QR mới';
         };
 
+        const handleHoldTimeout = async () => {
+            if (holdExpiredHandled) {
+                return;
+            }
+            holdExpiredHandled = true;
+            showPayosError('Phiên giữ ghế đã hết hạn. Đang quay về trang chủ...');
+            await resetPayosState({ cancelBooking: true });
+            await releaseHold(showtimeId, holdToken);
+            holdToken = '';
+            root.dataset.holdToken = '';
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 2000);
+        };
+
         const updateHoldCountdown = () => {
             if (!holdExpiresAt) {
                 return;
@@ -142,9 +158,7 @@
                         clearInterval(holdCountdownIntervalId);
                         holdCountdownIntervalId = null;
                     }
-                    holdToken = '';
-                    showPayosError('Phiên giữ ghế đã hết hạn. Vui lòng chọn ghế khác.');
-                    setRegenerateBusy(true);
+                    handleHoldTimeout();
                 }
             };
             holdCountdownIntervalId = window.setInterval(tick, 1000);
@@ -472,6 +486,7 @@
                 holdExpiresAt = data.expiresAt;
                 root.dataset.holdToken = holdToken;
                 root.dataset.expiresAt = holdExpiresAt;
+                holdExpiredHandled = false;
                 updateUrlState({ token: holdToken, bookingId: null });
                 return true;
             } catch (error) {

@@ -511,8 +511,13 @@ function renderDayGroup(dayGroup) {
 }
 
 function renderShowtimeOccurrence(occurrence) {
-    const statusClass = occurrence.active ? "status-active" : "status-inactive";
-    const statusLabel = occurrence.active ? "Đang mở" : "Tạm tắt";
+    const isEnded = Boolean(occurrence.ended);
+    const statusClass = isEnded
+        ? "status-ended"
+        : occurrence.active
+        ? "status-active"
+        : "status-inactive";
+    const statusLabel = isEnded ? "Hết chiếu" : occurrence.active ? "Đang mở" : "Tạm tắt";
     const dateLabel = occurrence.showDateLabel || formatShowDate(occurrence.showDate);
     const roomLabel = occurrence.auditoriumName ? `Phòng ${occurrence.auditoriumName}` : "Chưa rõ phòng";
     const moviePrimary = occurrence.movieTitle ? `<span class="showtime-movie-primary">${occurrence.movieTitle}</span>` : "";
@@ -522,9 +527,21 @@ function renderShowtimeOccurrence(occurrence) {
     const movieLine = moviePrimary
         ? `<div class="showtime-movie-line">${moviePrimary}${movieSecondary}</div>`
         : "";
-    const toggleTargetActive = occurrence.active ? "false" : "true";
-    const toggleButtonLabel = occurrence.active ? "Vô hiệu hóa" : "Kích hoạt";
     const safeShowtimeLabel = escapeHtml(`${dateLabel} - ${roomLabel}`);
+    const toggleButtonMarkup = isEnded
+        ? `<button type="button"
+                class="btn btn-outline-warning btn-sm"
+                disabled
+                title="Suất chiếu đã kết thúc">
+                Hết chiếu
+            </button>`
+        : `<button type="button"
+                class="btn btn-outline-warning btn-sm"
+                data-showtime-toggle="${occurrence.id}"
+                data-target-active="${occurrence.active ? "false" : "true"}"
+                data-showtime-label="${safeShowtimeLabel}">
+                ${occurrence.active ? "Vô hiệu hóa" : "Kích hoạt"}
+            </button>`;
     return `
         <li class="showtime-occurrence-item">
             <div>
@@ -536,13 +553,7 @@ function renderShowtimeOccurrence(occurrence) {
                 </div>
             </div>
             <div class="d-flex gap-2 flex-wrap">
-                <button type="button"
-                    class="btn btn-outline-warning btn-sm"
-                    data-showtime-toggle="${occurrence.id}"
-                    data-target-active="${toggleTargetActive}"
-                    data-showtime-label="${safeShowtimeLabel}">
-                    ${toggleButtonLabel}
-                </button>
+                ${toggleButtonMarkup}
                 <button type="button" class="btn btn-outline-light btn-sm" data-edit="${occurrence.id}">Sửa</button>
                 <button type="button" class="btn btn-outline-danger btn-sm" data-delete="${occurrence.id}">Xóa</button>
             </div>

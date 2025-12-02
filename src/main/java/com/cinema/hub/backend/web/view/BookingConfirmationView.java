@@ -2,6 +2,7 @@ package com.cinema.hub.backend.web.view;
 
 import com.cinema.hub.backend.util.CurrencyFormatter;
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
 import lombok.Builder;
 import lombok.Getter;
@@ -18,6 +19,7 @@ public class BookingConfirmationView {
     private final String format;
     private final String email;
     private final List<String> seatLabels;
+    private final List<String> seatGroups;
     private final String showtimeText;
     private final BigDecimal total;
 
@@ -31,5 +33,14 @@ public class BookingConfirmationView {
 
     public String getFormattedTotal() {
         return CurrencyFormatter.format(total);
+    }
+
+    public List<String> getSeatGroupLines() {
+        if (seatGroups != null && !seatGroups.isEmpty()) {
+            return seatGroups;
+        }
+        return seatLabels != null && !seatLabels.isEmpty()
+                ? List.of(getSeatLabelsAsString())
+                : Collections.emptyList();
     }
 }

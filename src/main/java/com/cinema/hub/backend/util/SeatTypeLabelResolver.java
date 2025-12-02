@@ -13,9 +13,9 @@ public final class SeatTypeLabelResolver {
         }
         String normalized = seatType.trim().toLowerCase(Locale.ROOT);
         return switch (normalized) {
-            case "standard" -> "thường";
-            case "vip" -> "vip";
-            case "couple" -> "đôi";
+            case "standard" -> "Thường";
+            case "vip" -> "VIP";
+            case "couple" -> "Đôi";
             default -> seatType;
         };
     }

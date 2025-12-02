@@ -36,9 +36,13 @@
                         <span>Giờ chiếu</span>
                         <strong th:text="${booking.showtimeText}">Fri - 7:30 PM</strong>
                     </div>
-                    <div>
+                    <div class="seat-group-block">
                         <span>Ghế</span>
-                        <strong th:text="${booking.seatLabelsAsString}">A5, A6</strong>
+                        <div class="seat-group-list" th:if="${booking.seatGroupLines != null}">
+                            <p class="seat-group-line"
+                               th:each="line : ${booking.seatGroupLines}"
+                               th:text="${line}">A1, A2 - thường</p>
+                        </div>
                     </div>
                     <div>
                         <span>Định dạng</span>

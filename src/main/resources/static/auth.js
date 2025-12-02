@@ -684,7 +684,7 @@ function renderTicketHistory(entries) {
     if (!entries.length) {
         const row = document.createElement("tr");
         const col = document.createElement("td");
-        col.colSpan = 5;
+        col.colSpan = 6;
         col.className = "text-center text-light";
         col.textContent = "Chưa có dữ liệu";
         row.appendChild(col);
@@ -698,6 +698,19 @@ function renderTicketHistory(entries) {
             cell.textContent = item[field] ?? "";
             row.appendChild(cell);
         });
+        const actionCell = document.createElement("td");
+        if (item.bookingCode) {
+            const link = document.createElement("a");
+            link.href = `/movies/confirmation/${item.bookingCode}`;
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+            link.className = "btn btn-sm btn-outline-light";
+            link.textContent = "Xem vé";
+            actionCell.appendChild(link);
+        } else {
+            actionCell.textContent = "-";
+        }
+        row.appendChild(actionCell);
         tbody.appendChild(row);
     });
 }
@@ -710,6 +723,7 @@ async function loadTicketHistory(user) {
     try {
         const history = await apiRequest(ProfileAPI.history(user.userId));
         const formatted = history.map((item) => ({
+            bookingCode: item.bookingCode,
             date: formatHistoryDate(item.purchasedAt || item.showtime),
             movie: [item.movieTitle, item.theaterName].filter(Boolean).join(" • "),
             showtime: formatShowtime(item.showtime),

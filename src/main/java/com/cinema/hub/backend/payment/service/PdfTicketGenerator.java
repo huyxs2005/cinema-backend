@@ -3,6 +3,7 @@ package com.cinema.hub.backend.payment.service;
 import com.cinema.hub.backend.entity.Booking;
 import com.cinema.hub.backend.entity.BookingSeat;
 import com.cinema.hub.backend.payment.util.PaymentException;
+import com.cinema.hub.backend.util.AsciiSanitizer;
 import com.cinema.hub.backend.util.CurrencyFormatter;
 import com.cinema.hub.backend.util.SeatTypeLabelResolver;
 import com.cinema.hub.backend.util.TimeProvider;
@@ -20,9 +21,12 @@ import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
@@ -89,28 +93,21 @@ public class PdfTicketGenerator {
         String showtime = SHOWTIME_FORMAT.format(booking.getShowtime().getStartTime());
         OffsetDateTime issuedAt = booking.getPaidAt() != null ? booking.getPaidAt() : TimeProvider.now();
         BigDecimal total = booking.getFinalAmount() != null ? booking.getFinalAmount() : booking.getTotalAmount();
-        List<String> seatPills = seats.stream()
-                .map(seat -> {
-                    var seatEntity = seat.getShowtimeSeat().getSeat();
-                    String source = seatEntity.getSeatType() != null ? seatEntity.getSeatType().getName() : "Standard";
-                    String localized = SeatTypeLabelResolver.localize(source);
-                    return seatEntity.getRowLabel() + seatEntity.getSeatNumber() + " (" + localized + ")";
-                })
-                .toList();
+        List<String> seatGroups = buildSeatGroupLines(seats);
 
         String auditoriumName = sanitizeAuditoriumName(
                 booking.getShowtime().getAuditorium().getName());
 
         return TicketPdfModel.builder()
-                .movieTitle(movieTitle.toUpperCase(Locale.ROOT))
-                .originalTitle(originalTitle)
-                .bookingCode(booking.getBookingCode())
+                .movieTitle(ascii(movieTitle).toUpperCase(Locale.ROOT))
+                .originalTitle(ascii(originalTitle))
+                .bookingCode(ascii(booking.getBookingCode()))
                 .cinemaName("Cinema HUB")
-                .auditoriumName(auditoriumName)
-                .showtime(showtime)
-                .issuedAt(ISSUED_AT_FORMAT.format(issuedAt))
-                .total(CurrencyFormatter.format(total))
-                .seatDetails(seatPills)
+                .auditoriumName(ascii(auditoriumName))
+                .showtime(ascii(showtime))
+                .issuedAt(ascii(ISSUED_AT_FORMAT.format(issuedAt)))
+                .total(ascii(CurrencyFormatter.format(total)))
+                .seatGroups(seatGroups)
                 .qrDataUrl(renderQrDataUri(booking.getBookingCode()))
                 .build();
     }
@@ -137,6 +134,27 @@ public class PdfTicketGenerator {
         }
     }
 
+    private List<String> buildSeatGroupLines(List<BookingSeat> seats) {
+        Map<String, List<String>> grouped = new LinkedHashMap<>();
+        for (BookingSeat seat : seats) {
+            var seatEntity = seat.getShowtimeSeat().getSeat();
+            String label = seatEntity.getRowLabel() + seatEntity.getSeatNumber();
+            String seatTypeName = seatEntity.getSeatType() != null ? seatEntity.getSeatType().getName() : "";
+            String localized = SeatTypeLabelResolver.localize(seatTypeName);
+            if (localized == null || localized.isBlank()) {
+                localized = "Khac";
+            }
+            grouped.computeIfAbsent(localized, key -> new ArrayList<>()).add(label);
+        }
+        return grouped.entrySet().stream()
+                .map(entry -> ascii(String.join(", ", entry.getValue()) + " - " + entry.getKey()))
+                .toList();
+    }
+
+    private String ascii(String value) {
+        return AsciiSanitizer.toAscii(value);
+    }
+
     @lombok.Builder
     private record TicketPdfModel(
             String movieTitle,
@@ -147,8 +165,7 @@ public class PdfTicketGenerator {
             String showtime,
             String issuedAt,
             String total,
-            String seatSummary,
-            List<String> seatDetails,
+            List<String> seatGroups,
             String qrDataUrl
     ) {
     }

@@ -2375,7 +2375,7 @@ body {
 .sidebar-peek-toggle {
     position: absolute;
     left: 0;
-    top: 2rem;
+    top: 3rem;
     transform: translate(-60%, 0);
     width: 48px;
     height: 96px;
@@ -3675,6 +3675,18 @@ body {
     font-size: 0.85rem;
     opacity: 0.7;
     margin-bottom: 0.35rem;
+}
+
+.seat-group-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.seat-group-line {
+    margin: 0;
+    font-weight: 600;
+    color: #f8fafc;
 }
 
 .confirmation-ticket {

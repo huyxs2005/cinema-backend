@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import com.cinema.hub.backend.util.SeatTypeLabelResolver;
 import com.cinema.hub.backend.util.TimeProvider;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -133,6 +134,7 @@ public class BookingService {
 
     private BookingConfirmationView buildConfirmationView(Booking booking) {
         List<String> seatLabels = loadSeatLabels(booking);
+        List<String> seatGroups = buildSeatGroupLines(booking);
         BigDecimal total = booking.getFinalAmount() != null ? booking.getFinalAmount() : booking.getTotalAmount();
         String showtimeText = booking.getShowtime().getStartTime()
                 .format(DateTimeFormatter.ofPattern("EEE, MMM d - h:mm a"));
@@ -145,6 +147,7 @@ public class BookingService {
                 .format(resolveBookingFormat(booking))
                 .email(booking.getUser() != null ? booking.getUser().getEmail() : "")
                 .seatLabels(seatLabels)
+                .seatGroups(seatGroups)
                 .showtimeText(showtimeText)
                 .total(total)
                 .build();
@@ -184,9 +187,30 @@ public class BookingService {
         return seats.stream()
                 .map(bs -> {
                     var seat = bs.getShowtimeSeat().getSeat();
-                    return seat.getRowLabel() + seat.getSeatNumber();
+                    String label = seat.getRowLabel() + seat.getSeatNumber();
+                    String seatTypeName = seat.getSeatType() != null ? seat.getSeatType().getName() : null;
+                    String localized = SeatTypeLabelResolver.localize(seatTypeName);
+                    if (localized != null && !localized.isBlank()) {
+                        return label + " (" + localized + ")";
+                    }
+                    return label;
                 })
                 .collect(Collectors.toList());
     }
-}
 
+    private List<String> buildSeatGroupLines(Booking booking) {
+        List<BookingSeat> seats = bookingSeatRepository.findDetailedByBooking(booking.getId());
+        java.util.Map<String, java.util.List<String>> grouped = new java.util.LinkedHashMap<>();
+        for (BookingSeat bookingSeat : seats) {
+            var seat = bookingSeat.getShowtimeSeat().getSeat();
+            String label = seat.getRowLabel() + seat.getSeatNumber();
+            String seatTypeName = seat.getSeatType() != null ? seat.getSeatType().getName() : null;
+            String localized = SeatTypeLabelResolver.localize(seatTypeName);
+            String typeLabel = (localized != null && !localized.isBlank()) ? localized : "khác";
+            grouped.computeIfAbsent(typeLabel, key -> new java.util.ArrayList<>()).add(label);
+        }
+        return grouped.entrySet().stream()
+                .map(entry -> String.join(", ", entry.getValue()) + " - " + entry.getKey())
+                .collect(Collectors.toList());
+    }
+}

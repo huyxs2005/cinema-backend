@@ -6,16 +6,20 @@ import com.cinema.hub.backend.dto.common.PageResponse;
 import com.cinema.hub.backend.entity.Auditorium;
 import com.cinema.hub.backend.entity.Seat;
 import com.cinema.hub.backend.entity.SeatType;
+import com.cinema.hub.backend.entity.enums.BookingStatus;
 import com.cinema.hub.backend.mapper.AuditoriumMapper;
 import com.cinema.hub.backend.repository.AuditoriumRepository;
+import com.cinema.hub.backend.repository.BookingRepository;
 import com.cinema.hub.backend.repository.SeatRepository;
 import com.cinema.hub.backend.repository.ShowtimeRepository;
 import com.cinema.hub.backend.service.AuditoriumService;
 import com.cinema.hub.backend.specification.AuditoriumSpecifications;
+import com.cinema.hub.backend.util.TimeProvider;
 import com.cinema.hub.backend.util.SeatLayoutCalculator;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -33,11 +37,14 @@ public class AuditoriumServiceImpl implements AuditoriumService {
     private static final int STANDARD_SEAT_TYPE_ID = 1;
     private static final int VIP_SEAT_TYPE_ID = 2;
     private static final int COUPLE_SEAT_TYPE_ID = 3;
+    private static final EnumSet<BookingStatus> PROTECTED_BOOKING_STATUSES =
+            EnumSet.of(BookingStatus.Pending, BookingStatus.Confirmed);
 
     private final AuditoriumRepository auditoriumRepository;
     private final AuditoriumMapper auditoriumMapper;
     private final SeatRepository seatRepository;
     private final ShowtimeRepository showtimeRepository;
+    private final BookingRepository bookingRepository;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -45,11 +52,13 @@ public class AuditoriumServiceImpl implements AuditoriumService {
     public AuditoriumServiceImpl(AuditoriumRepository auditoriumRepository,
                                  AuditoriumMapper auditoriumMapper,
                                  SeatRepository seatRepository,
-                                 ShowtimeRepository showtimeRepository) {
+                                 ShowtimeRepository showtimeRepository,
+                                 BookingRepository bookingRepository) {
         this.auditoriumRepository = auditoriumRepository;
         this.auditoriumMapper = auditoriumMapper;
         this.seatRepository = seatRepository;
         this.showtimeRepository = showtimeRepository;
+        this.bookingRepository = bookingRepository;
     }
 
     @Override
@@ -66,15 +75,33 @@ public class AuditoriumServiceImpl implements AuditoriumService {
     public AuditoriumResponse update(int id, AuditoriumRequest request) {
         Auditorium auditorium = getEntity(id);
         Boolean previousActive = auditorium.getActive();
+        int currentRows = auditorium.getNumberOfRows();
+        int currentColumns = auditorium.getNumberOfColumns();
+        SeatLayoutCalculator.SeatRowDistribution currentDistribution = summarizeSeatRows(auditorium);
+        SeatLayoutCalculator.SeatRowDistribution requestedDistribution = distributionFromRequest(request);
+
+        boolean layoutChanged = hasSeatLayoutChanged(currentRows, currentColumns, currentDistribution, request, requestedDistribution);
+
         applyRequest(auditorium, request);
-        SeatLayoutCalculator.SeatRowDistribution distribution = distributionFromRequest(request);
-        seatRepository.deleteByAuditorium_Id(auditorium.getId());
-        Auditorium saved = auditoriumRepository.save(auditorium);
-        createDefaultSeats(saved, distribution);
+        Auditorium saved;
+        if (layoutChanged) {
+            if (showtimeRepository.existsByAuditorium_Id(auditorium.getId())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Không thể thay đổi sơ đồ ghế vì phòng vẫn đang có suất chiếu.");
+            }
+            seatRepository.deleteByAuditorium_Id(auditorium.getId());
+            entityManager.flush();
+            saved = auditoriumRepository.save(auditorium);
+            createDefaultSeats(saved, requestedDistribution);
+        } else {
+            saved = auditoriumRepository.save(auditorium);
+        }
         if (!Objects.equals(previousActive, saved.getActive())) {
             propagateActivation(saved.getId(), Boolean.TRUE.equals(saved.getActive()));
         }
-        return auditoriumMapper.toResponse(saved, distribution);
+        SeatLayoutCalculator.SeatRowDistribution responseDistribution =
+                layoutChanged ? requestedDistribution : currentDistribution;
+        return auditoriumMapper.toResponse(saved, responseDistribution);
     }
 
     @Override
@@ -103,6 +130,10 @@ public class AuditoriumServiceImpl implements AuditoriumService {
     @Override
     public AuditoriumResponse updateActive(int id, boolean active) {
         Auditorium auditorium = getEntity(id);
+        if (!active && hasFutureBookingsForAuditorium(id)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "KhA'ng th��� vA' hi���u hA3a phA�ng chi���u �`ang cA3 khA�ch �`A�t vAc cho cA�c su���t chi���u ch��a kA�t thA�c.");
+        }
         auditorium.setActive(active);
         propagateActivation(id, active);
         Auditorium saved = auditoriumRepository.save(auditorium);
@@ -231,8 +262,29 @@ public class AuditoriumServiceImpl implements AuditoriumService {
         return new SeatLayoutCalculator.SeatRowDistribution(standard, vip, couple);
     }
 
+    private boolean hasSeatLayoutChanged(Integer currentRows,
+                                         Integer currentColumns,
+                                         SeatLayoutCalculator.SeatRowDistribution currentDistribution,
+                                         AuditoriumRequest request,
+                                         SeatLayoutCalculator.SeatRowDistribution requestedDistribution) {
+        if (!Objects.equals(currentRows, request.getNumberOfRows())) {
+            return true;
+        }
+        if (!Objects.equals(currentColumns, request.getNumberOfColumns())) {
+            return true;
+        }
+        return !Objects.equals(currentDistribution, requestedDistribution);
+    }
+
     private void propagateActivation(int auditoriumId, boolean active) {
         showtimeRepository.updateActiveByAuditoriumId(auditoriumId, active);
         seatRepository.updateActiveByAuditoriumId(auditoriumId, active);
+    }
+
+    private boolean hasFutureBookingsForAuditorium(int auditoriumId) {
+        return bookingRepository.existsActiveBookingForAuditorium(
+                auditoriumId,
+                TimeProvider.now().toLocalDateTime(),
+                PROTECTED_BOOKING_STATUSES);
     }
 }

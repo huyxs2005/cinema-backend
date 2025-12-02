@@ -13,7 +13,7 @@
                                         <button type="button" class="btn btn-outline-light" id="selectImageBtn">Chọn ảnh</button>
                                         <input type="file" id="bannerImageFile" accept="image/*" hidden>
                                     </div>
-                                    <small class="text-muted d-block mt-1" id="imagePathHint">Chưa có ảnh nào được tải lên.</small>
+                                    <small class="text-muted d-block mt-1" id="imagePathHint"></small>
                                     <div class="text-danger small mt-1" id="imagePathError"></div>
                                 </div>
                                 <div class="mb-3">
@@ -31,7 +31,6 @@
                         <button type="button" class="btn btn-sm btn-outline-secondary" id="movieClearBtn">Xóa chọn</button>
                     </div>
                     <input type="text" class="form-control mt-2" id="movieSearchInput" placeholder="Tìm kiếm tên phim hoặc tên gốc...">
-                    <small class="text-muted d-block mt-1">Danh sách tự động lấy từ dữ liệu phim hiện có.</small>
                     <div class="movie-suggestion-list" id="movieSuggestionList"></div>
                                     <div class="movie-preview mt-3" id="moviePreview"></div>
                                     <div class="text-danger small mt-1" id="movieSelectError"></div>
@@ -42,7 +41,6 @@
                         <button type="button" class="btn btn-sm btn-outline-secondary" id="promotionClearBtn">Xóa chọn</button>
                     </div>
                     <input type="text" class="form-control mt-2" id="promotionSearchInput" placeholder="Tìm kiếm khuyến mãi">
-                    <small class="text-muted d-block mt-1">Danh sách tự động lấy từ mục Khuyến mãi.</small>
                     <div class="movie-suggestion-list movie-suggestion-list--hidden" id="promotionSuggestionList"></div>
                     <div class="movie-preview mt-3 movie-preview--hidden" id="promotionPreview"></div>
                     <div class="text-danger small mt-1" id="promotionSelectError"></div>

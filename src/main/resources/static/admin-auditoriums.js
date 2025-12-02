@@ -16,7 +16,7 @@ const AUD_PAGE_SIZE = 10;
 const AUD_ROWS_MIN = 1;
 const AUD_ROWS_MAX = 26;
 const AUD_COLUMNS_MIN = 1;
-const AUD_COLUMNS_MAX = 30;
+const AUD_COLUMNS_MAX = 20;
 const auditoriumState = {
     page: 0,
     totalPages: 0,
@@ -242,6 +242,7 @@ async function submitAuditoriumForm(event) {
     } catch (error) {
         messageBox.textContent = error.message;
         messageBox.classList.add("text-warning");
+        messageBox.scrollIntoView({ behavior: "smooth", block: "center" });
     } finally {
         setAuditoriumSubmitting(false, submitBtn);
     }

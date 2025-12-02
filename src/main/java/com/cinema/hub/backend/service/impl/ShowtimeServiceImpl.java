@@ -11,8 +11,10 @@ import com.cinema.hub.backend.entity.Movie;
 import com.cinema.hub.backend.entity.Seat;
 import com.cinema.hub.backend.entity.Showtime;
 import com.cinema.hub.backend.entity.ShowtimeSeat;
+import com.cinema.hub.backend.entity.enums.BookingStatus;
 import com.cinema.hub.backend.mapper.ShowtimeMapper;
 import com.cinema.hub.backend.repository.AuditoriumRepository;
+import com.cinema.hub.backend.repository.BookingRepository;
 import com.cinema.hub.backend.repository.MovieRepository;
 import com.cinema.hub.backend.repository.SeatRepository;
 import com.cinema.hub.backend.repository.SeatHoldRepository;
@@ -31,6 +33,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -69,7 +72,10 @@ public class ShowtimeServiceImpl implements ShowtimeService {
     private final SeatRepository seatRepository;
     private final ShowtimeSeatRepository showtimeSeatRepository;
     private final SeatHoldRepository seatHoldRepository;
+    private final BookingRepository bookingRepository;
     private final ShowtimeMapper showtimeMapper;
+    private static final EnumSet<BookingStatus> PROTECTED_BOOKING_STATUSES =
+            EnumSet.of(BookingStatus.Pending, BookingStatus.Confirmed);
 
     @Override
     public List<ShowtimeResponse> create(ShowtimeRequest request) {
@@ -102,6 +108,10 @@ public class ShowtimeServiceImpl implements ShowtimeService {
         validateStartTime(request.getStartTime());
         LocalDateTime endTime = calculateEndTime(movie, request.getStartTime(), request.getCleanupMinutes());
         enforceNoConflict(auditorium.getId(), request.getStartTime(), endTime, id);
+        if (Boolean.FALSE.equals(request.getActive()) && hasFutureProtectedBookings(showtime)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Không thể vô hiệu hóa suất chiếu đang có khách đặt vé.");
+        }
 
         showtime.setMovie(movie);
         showtime.setAuditorium(auditorium);
@@ -121,6 +131,10 @@ public class ShowtimeServiceImpl implements ShowtimeService {
     @Override
     public void delete(int id) {
         Showtime showtime = getEntity(id);
+        if (hasFutureProtectedBookings(showtime)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Không thể xóa suất chiếu đang có vé được đặt.");
+        }
         seatHoldRepository.deleteByShowtimeId(showtime.getId());
         showtimeSeatRepository.deleteByShowtime_Id(showtime.getId());
         showtimeRepository.delete(showtime);
@@ -135,6 +149,9 @@ public class ShowtimeServiceImpl implements ShowtimeService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Không thể kích hoạt suất chiếu vì phòng chiếu đang bị vô hiệu hóa.");
             }
+        } else if (hasFutureProtectedBookings(showtime)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Không thể vô hiệu hóa suất chiếu đang có khách đặt vé.");
         }
         showtime.setActive(active);
         return showtimeMapper.toResponse(showtimeRepository.save(showtime));
@@ -427,6 +444,21 @@ public class ShowtimeServiceImpl implements ShowtimeService {
         Showtime showtime = showtimeRepository.findByIdWithDetails(showtimeId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Showtime not found"));
         return SeatSelectionShowtimeView.fromEntity(showtime);
+    }
+
+    private boolean hasFutureProtectedBookings(Showtime showtime) {
+        LocalDateTime endTime = showtime.getEndTime();
+        if (endTime == null) {
+            return false;
+        }
+        LocalDateTime now = TimeProvider.now().toLocalDateTime();
+        if (!endTime.isAfter(now)) {
+            return false;
+        }
+        return bookingRepository.existsActiveBookingForShowtime(
+                showtime.getId(),
+                now,
+                PROTECTED_BOOKING_STATUSES);
     }
 
     private boolean isWeekend(DayOfWeek dayOfWeek) {

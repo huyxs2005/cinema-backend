@@ -35,9 +35,4 @@ public class AuthPageController {
     public String adminDashboard() {
         return "admin-dashboard";
     }
-
-    @GetMapping("/staff/portal")
-    public String staffPortal() {
-        return "staff-portal";
-    }
 }

@@ -393,6 +393,9 @@ public class SeatReservationService {
                     .unitPrice(hold.getShowtimeSeat().getEffectivePrice())
                     .discountAmount(BigDecimal.ZERO)
                     .finalPrice(hold.getShowtimeSeat().getEffectivePrice())
+                    .seatTag(null)
+                    .appliedPromotionCode(null)
+                    .appliedPromotionNote(null)
                     .build());
         }
         return bookingSeatRepository.saveAll(bookingSeats);

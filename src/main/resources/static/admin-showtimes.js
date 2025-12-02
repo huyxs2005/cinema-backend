@@ -1039,6 +1039,7 @@ function validateShowtimePayload(payload, options = {}) {
     const errors = [];
     const startDateValue = options.startDateValue || "";
     const startTimeValue = options.startTimeValue || "";
+    const normalizedRepeatMode = (payload.repeatMode || "NONE").toUpperCase();
     if (!payload.movieId) {
         errors.push({ field: "showtimeMovieSearch", message: "Vui lòng chọn phim *" });
     }
@@ -1064,6 +1065,18 @@ function validateShowtimePayload(payload, options = {}) {
             errors.push({ field: "showtimeRepeatUntil", message: "Vui lòng chọn giờ bắt đầu trước *" });
         } else if (isRepeatUntilBeforeStart(payload.startTime, payload.repeatUntil)) {
             errors.push({ field: "showtimeRepeatUntil", message: "Ngày kết thúc phải từ ngày bắt đầu trở đi *" });
+        }
+    }
+    if (normalizedRepeatMode !== "NONE" && startDateValue) {
+        const allowedDays = computeAllowedRepeatDays(normalizedRepeatMode, payload.repeatDays, startDateValue);
+        if (allowedDays.length) {
+            const repeatRangeEnd = payload.repeatUntil || startDateValue;
+            if (!rangeHasAllowedDay(startDateValue, repeatRangeEnd, allowedDays)) {
+                errors.push({
+                    field: "showtimeRepeatUntil",
+                    message: "Không tìm thấy ngày phù hợp cho tùy chọn đã chọn. Vui lòng mở rộng khoảng ngày hoặc thay đổi ngày bắt đầu."
+                });
+            }
         }
     }
     return errors;
@@ -1279,4 +1292,47 @@ function timeStringToMinutes(value) {
         return null;
     }
     return h * 60 + m;
+}
+
+function computeAllowedRepeatDays(mode, repeatDays, startDateValue) {
+    if (mode === "CUSTOM") {
+        if (Array.isArray(repeatDays) && repeatDays.length) {
+            return repeatDays
+                    .map((day) => Number(day))
+                    .filter((num) => Number.isInteger(num) && num >= 1 && num <= 7);
+        }
+        const fallbackDay = getDayNumberFromDate(startDateValue);
+        return fallbackDay ? [fallbackDay] : [];
+    }
+    const preset = repeatDayPresets[mode];
+    if (Array.isArray(preset) && preset.length) {
+        return preset;
+    }
+    const fallbackDay = getDayNumberFromDate(startDateValue);
+    return fallbackDay ? [fallbackDay] : [];
+}
+
+function rangeHasAllowedDay(startDateValue, endDateValue, allowedDays) {
+    if (!startDateValue || !endDateValue || !allowedDays.length) {
+        return false;
+    }
+    const start = new Date(`${startDateValue}T00:00:00`);
+    const end = new Date(`${endDateValue}T00:00:00`);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+        return false;
+    }
+    if (end.getTime() < start.getTime()) {
+        return false;
+    }
+    const allowed = new Set(allowedDays.map((day) => Number(day)));
+    const cursor = new Date(start.getTime());
+    while (cursor.getTime() <= end.getTime()) {
+        const jsDay = cursor.getDay();
+        const vnDay = ((jsDay + 6) % 7) + 1;
+        if (allowed.has(vnDay)) {
+            return true;
+        }
+        cursor.setDate(cursor.getDate() + 1);
+    }
+    return false;
 }

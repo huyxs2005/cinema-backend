@@ -40,6 +40,11 @@ public class MovieAdminController {
         return movieAdminService.getById(id);
     }
 
+    @GetMapping("/genres/all")
+    public List<String> getGenres() {
+        return movieAdminService.getAllGenreNames();
+    }
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public MovieAdminResponseDto createMovie(@Valid @RequestBody MovieAdminRequestDto request) {

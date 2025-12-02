@@ -550,7 +550,7 @@ IF COL_LENGTH('dbo.Users', 'LastLoginAt') IS NULL
 BEGIN
     ALTER TABLE dbo.Users ADD LastLoginAt DATETIME2 NULL;
 END
-GO
+
 
 USE CinemaBooking_Backlog;
 GO
@@ -599,3 +599,35 @@ GO
 
 
 
+
+
+
+
+
+
+
+GO
+
+/* =========================================
+   BookingSeats - seat level metadata
+   ========================================= */
+IF COL_LENGTH('dbo.BookingSeats', 'SeatTag') IS NULL
+BEGIN
+    ALTER TABLE dbo.BookingSeats
+        ADD SeatTag NVARCHAR(50) NULL;
+END
+GO
+
+IF COL_LENGTH('dbo.BookingSeats', 'AppliedPromotionCode') IS NULL
+BEGIN
+    ALTER TABLE dbo.BookingSeats
+        ADD AppliedPromotionCode NVARCHAR(100) NULL;
+END
+GO
+
+IF COL_LENGTH('dbo.BookingSeats', 'AppliedPromotionNote') IS NULL
+BEGIN
+    ALTER TABLE dbo.BookingSeats
+        ADD AppliedPromotionNote NVARCHAR(255) NULL;
+END
+GO

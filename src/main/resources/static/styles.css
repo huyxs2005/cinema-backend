@@ -3074,8 +3074,8 @@ body {
 }
 
 .seat-layout {
-    display: grid;
-    grid-template-columns: minmax(480px, 3fr) minmax(280px, 2fr);
+    display: flex;
+    flex-direction: column;
     gap: 1.5rem;
     margin-top: 1.5rem;
     --seat-poster: url('/img/hitsuyou.svg');
@@ -3182,12 +3182,16 @@ body {
     display: flex;
     flex-direction: column;
     gap: 0.65rem;
+    align-items: center;
 }
 
 .seat-row {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto auto;
     align-items: center;
-    gap: 0.85rem;
+    column-gap: 0.85rem;
+    justify-content: center;
+    width: 100%;
 }
 
 .row-label {
@@ -3201,6 +3205,7 @@ body {
     display: flex;
     flex-wrap: wrap;
     gap: 0.4rem;
+    justify-content: center;
 }
 
 .seat {
@@ -3293,6 +3298,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    width: 100%;
 }
 
 .selection-sidebar .btn-outline {
@@ -3349,9 +3355,6 @@ body {
 }
 
 @media (max-width: 960px) {
-    .seat-layout {
-        grid-template-columns: 1fr;
-    }
     .seat-selection-panel {
         padding: 1rem;
     }

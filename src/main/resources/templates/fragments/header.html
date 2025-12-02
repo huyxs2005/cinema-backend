@@ -75,6 +75,11 @@
                                     th:classappend="${(currentUser == null or currentUser.role == null or currentUser.role.name != 'ADMIN') ? ' hidden' : ''}">
                                 Khu vực quản lý
                             </button>
+                            <button type="button" data-user-action="staff"
+                                    th:classappend="${(currentUser == null or currentUser.role == null
+                                        or !#strings.equalsIgnoreCase(currentUser.role.name, 'STAFF')) ? ' hidden' : ''}">
+                                Khu vực nhân viên
+                            </button>
                             <button type="button" data-user-action="logout">Đăng xuất</button>
                             <form id="logoutForm" th:action="@{/logout}" method="post"></form>
                         </div>

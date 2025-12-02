@@ -47,4 +47,13 @@ public class BookingSeat {
 
     @Column(name = "FinalPrice", nullable = false)
     private BigDecimal finalPrice;
+
+    @Column(name = "SeatTag", length = 50)
+    private String seatTag;
+
+    @Column(name = "AppliedPromotionCode", length = 100)
+    private String appliedPromotionCode;
+
+    @Column(name = "AppliedPromotionNote", length = 255)
+    private String appliedPromotionNote;
 }

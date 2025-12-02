@@ -26,8 +26,8 @@
                                     <div class="text-danger small mt-1" id="movieDurationError"></div>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="movieAgeRating" class="form-label">Giới hạn độ tuổi</label>
-                                    <select id="movieAgeRating" class="form-select">
+                                    <label for="movieAgeRating" class="form-label">Giới hạn độ tuổi <span class="text-danger">*</span></label>
+                                    <select id="movieAgeRating" class="form-select" required>
                                         <option value="">-- Chọn --</option>
                                         <option value="P">P (Mọi lứa tuổi)</option>
                                         <option value="K">K (Dưới 13 cần người giám hộ)</option>
@@ -35,15 +35,16 @@
                                         <option value="T16">T16 (16+)</option>
                                         <option value="T18">T18 (18+)</option>
                                     </select>
-                                    <div class="form-text text-muted">Chỉ chấp nhận: P, K, T13, T16, T18.</div>
+                                    <div class="text-danger small mt-1" id="movieAgeRatingError"></div>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="movieReleaseDate" class="form-label">Ngày khởi chiếu</label>
-                                    <input type="date" id="movieReleaseDate" class="form-control">
+                                    <label for="movieReleaseDate" class="form-label">Ngày khởi chiếu <span class="text-danger">*</span></label>
+                                    <input type="date" id="movieReleaseDate" class="form-control" required>
+                                    <div class="text-danger small mt-1" id="movieReleaseDateError"></div>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="movieEndDate" class="form-label">Ngày ngừng chiếu</label>
-                                    <input type="date" id="movieEndDate" class="form-control">
+                                    <label for="movieEndDate" class="form-label">Ngày ngừng chiếu <span class="text-danger">*</span></label>
+                                    <input type="date" id="movieEndDate" class="form-control" required>
                                     <div class="text-danger small mt-1" id="movieEndDateError"></div>
                                 </div>
                                 <div class="mb-3">
@@ -57,7 +58,6 @@
                                 <div class="mb-3">
                                     <label for="movieTrailerEmbedUrl" class="form-label">YouTube embed URL</label>
                                     <input type="url" id="movieTrailerEmbedUrl" class="form-control" placeholder="https://www.youtube.com/embed/xyz">
-                                    <div class="form-text text-muted">Dùng link dạng /embed/... để hiển thị khung xem trực tiếp.</div>
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">Poster <span class="text-danger">*</span></label>
@@ -66,18 +66,17 @@
                                         <button type="button" class="btn btn-outline-light" id="selectMoviePosterBtn">Chọn ảnh</button>
                                         <input type="file" id="moviePosterFile" accept="image/*" hidden>
                                     </div>
-                                    <small class="text-muted d-block mt-1" id="moviePosterHint">Chưa có poster nào</small>
                                     <div class="text-danger small mt-1" id="moviePosterError"></div>
                                 </div>
                                 <div class="mb-3">
-                                    <label class="form-label">Thể loại</label>
-                                    <div class="dropdown w-100">
-                                        <button class="btn btn-outline-light w-100 text-start" type="button" id="genreDropdownBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <label class="form-label">Thể loại <span class="text-danger">*</span></label>
+                                    <div class="dropdown w-100 genre-dropdown">
+                                        <button class="btn btn-outline-light w-100 text-start dropdown-toggle" type="button" id="genreDropdownBtn">
                                             <span id="genreDropdownLabel">Chọn thể loại</span>
                                         </button>
                                         <div class="dropdown-menu dropdown-menu-dark w-100 p-2" aria-labelledby="genreDropdownBtn" style="max-height: 260px; overflow-y: auto;" id="genreCheckboxList"></div>
                                     </div>
-                                    <div class="form-text text-muted">Chọn nhiều thể loại (A-Z).</div>
+                                    <div class="text-danger small mt-1" id="genreDropdownBtnError"></div>
                                 </div>
                                 <div class="mb-3">
                                     <label for="movieDirectors" class="form-label">Đạo diễn</label>

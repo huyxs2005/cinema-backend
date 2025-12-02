@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{staff/staff-layout :: layout('Quét QR check-in', ~{::body})}">
+<body>
+<section class="staff-scan-page" id="staffScanRoot"
+         th:attr="data-lookup-endpoint=@{/api/staff/checkin/lookup},
+                  data-checkin-endpoint=@{/api/staff/checkin}">
+    <section class="staff-hero">
+        <div>
+            <p class="staff-eyebrow">Kiểm soát vé</p>
+            <h1>Quét mã QR để check-in</h1>
+            <p>Đưa mã QR vào khung, hệ thống sẽ xác thực vé theo thời gian thực. Nếu camera gặp sự cố, hãy nhập mã đặt
+                vé hoặc BookingId để tra cứu thủ công.</p>
+        </div>
+    </section>
+
+    <div class="scan-grid">
+        <article class="step-card scanner-card">
+            <div class="scanner-head">
+                <div>
+                    <p class="staff-eyebrow small text-uppercase mb-1">Trạng thái camera</p>
+                    <h3 id="cameraStatusText" class="mb-1">Đang chờ cấp quyền</h3>
+                    <p class="text-muted mb-0" id="cameraStatusSubtext">Nhấn “Bật camera” và cho phép trình duyệt truy
+                        cập.</p>
+                </div>
+                <div class="scanner-actions">
+                    <button type="button" class="ghost-btn" id="resumeScanBtn" disabled>Quét lại</button>
+                    <button type="button" class="primary-btn" id="cameraRetryBtn">Bật camera</button>
+                </div>
+            </div>
+            <div class="qr-frame" id="qr-camera-preview"></div>
+            <div class="camera-status-msg" id="qr-status"></div>
+            <div class="camera-fallback" id="cameraFallback" hidden>
+                <p class="mb-1 fw-semibold">Không thể khởi động camera – hãy nhập mã thủ công.</p>
+                <small class="text-muted" id="cameraErrorLabel"></small>
+            </div>
+            <p class="scanner-hint">Đưa mã QR vào vùng sáng, giữ khoảng cách 20-30cm để lấy nét tốt nhất.</p>
+            <div class="fallback-box">
+                <h3>Nhập mã thủ công</h3>
+                <p class="text-muted mb-3">Nhập BookingCode (ví dụ: HUB123ABC) hoặc BookingId (chỉ gồm số).</p>
+                <div class="manual-input-group">
+                    <input id="manualInput" type="text" maxlength="32" placeholder="Nhập BookingCode / BookingId">
+                    <button type="button" id="manualScanBtn">Tra cứu</button>
+                </div>
+                <small class="text-muted d-block mt-2">Nhấn Enter để tra cứu nhanh.</small>
+            </div>
+        </article>
+
+        <article class="step-card scan-result-card" id="scan-result-container">
+            <div class="result-state">
+                <div class="scan-state-pill neutral" id="scanStatusPill">
+                    <span class="dot"></span>
+                    <span id="scanStatusText">Chưa quét</span>
+                </div>
+                <small id="scanStateMeta" class="text-muted">Chưa có dữ liệu</small>
+            </div>
+            <dl class="row">
+                <dt class="col-4">Mã đặt vé</dt>
+                <dd class="col-8" id="ticketBookingCode">---</dd>
+                <dt class="col-4">Khách hàng</dt>
+                <dd class="col-8" id="ticketCustomer">---</dd>
+                <dt class="col-4">Phim</dt>
+                <dd class="col-8" id="ticketMovie">---</dd>
+                <dt class="col-4">Suất chiếu</dt>
+                <dd class="col-8" id="ticketShowtime">---</dd>
+                <dt class="col-4">Ghế</dt>
+                <dd class="col-8" id="ticketSeat">---</dd>
+                <dt class="col-4">Thanh toán</dt>
+                <dd class="col-8">
+                    <span class="badge" id="ticketPaymentStatus">Chưa xác định</span>
+                </dd>
+                <dt class="col-4">Check-in</dt>
+                <dd class="col-8">
+                    <span class="badge" id="ticketCheckinStatus">Chưa check-in</span>
+                </dd>
+            </dl>
+            <button class="btn btn-primary w-100 mt-3" id="checkinBtn" type="button" disabled>Check-in ngay</button>
+            <p class="text-warning mt-3" id="scanError" hidden></p>
+        </article>
+    </div>
+</section>
+
+<div class="ticket-modal" id="ticketModal">
+    <div class="ticket-card">
+        <button class="close-btn" type="button" id="closeTicketModal">&times;</button>
+        <p class="popup-eyebrow text-uppercase text-muted mb-1">Thông tin vé</p>
+        <h3 id="modalTicketMovie">Phim</h3>
+        <div class="info-row">
+            <span>Suất chiếu</span>
+            <strong id="modalTicketShowtime"></strong>
+        </div>
+        <div class="info-row">
+            <span>Ghế</span>
+            <strong id="modalTicketSeat"></strong>
+        </div>
+        <div class="info-row">
+            <span>Trạng thái</span>
+            <span class="status-pill" id="modalTicketStatus"></span>
+        </div>
+        <button class="action-btn" type="button" id="modalCheckinBtn">Check-in ngay</button>
+    </div>
+</div>
+<div class="staff-toast" id="staffScanToast" role="status"></div>
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<script th:src="@{/staff/staff-scan.js}" src="/staff/staff-scan.js"></script>
+</body>
+</html>

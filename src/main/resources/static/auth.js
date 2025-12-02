@@ -13,7 +13,7 @@ const ProfileAPI = {
     changePassword: (userId) => `/api/profile/${userId}/change-password`
 };
 const CountdownDefaults = {
-    forgot: 120
+    forgot: 120          //quên mật khẩu bấm tại đây timer countdown in seconds
 };
 
 const PASSWORD_RULE = /^(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
@@ -38,6 +38,19 @@ function getCurrentUser() {
 function updateCurrentUser(user) {
     window.CURRENT_USER = user ?? null;
     syncAuthenticatedUi();
+}
+
+function resolveRoleName(value) {
+    if (!value) {
+        return "";
+    }
+    if (typeof value === "string") {
+        return value.trim().toUpperCase();
+    }
+    if (typeof value === "object" && value.name) {
+        return String(value.name).trim().toUpperCase();
+    }
+    return "";
 }
 
 function syncAuthenticatedUi() {
@@ -85,14 +98,14 @@ function updateUserMenuDisplay(user) {
 
 function updateAdminMenuVisibility(user) {
     const adminButton = document.querySelector('#userMenuDropdown [data-user-action="admin"]');
-    if (!adminButton) {
-        return;
+    const staffButton = document.querySelector('#userMenuDropdown [data-user-action="staff"]');
+    const roleName = resolveRoleName(user?.role || user);
+    if (adminButton) {
+        adminButton.classList.toggle("hidden", roleName !== "ADMIN");
     }
-    const roleName = typeof user?.role === "string"
-        ? user.role
-        : user?.role?.name;
-    const isAdmin = (roleName || "").toUpperCase() === "ADMIN";
-    adminButton.classList.toggle("hidden", !isAdmin);
+    if (staffButton) {
+        staffButton.classList.toggle("hidden", roleName !== "STAFF");
+    }
 }
 
 function initializeUserState() {
@@ -282,6 +295,10 @@ function handleUserMenuAction(action) {
     }
     if (action === "admin") {
         window.location.href = "/admin/dashboard";
+        return;
+    }
+    if (action === "staff") {
+        window.location.href = "/staff/dashboard";
         return;
     }
     if (action === "logout") {
@@ -956,11 +973,11 @@ function completeAuthSession(data) {
 }
 
 function redirectByRole(role) {
-    const normalized = (role || "").toUpperCase();
+    const normalized = resolveRoleName(role);
     if (normalized === "ADMIN") {
         window.location.href = "/admin/dashboard";
     } else if (normalized === "STAFF" || normalized === "EMPLOYEE") {
-        window.location.href = "/staff/portal";
+        window.location.href = "/staff/dashboard";
     } else {
         window.location.href = "/";
     }

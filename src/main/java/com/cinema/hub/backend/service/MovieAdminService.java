@@ -260,6 +260,14 @@ public class MovieAdminService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<String> getAllGenreNames() {
+        return genreRepository.findAll(Sort.by(Sort.Direction.ASC, "name"))
+                .stream()
+                .map(Genre::getName)
+                .toList();
+    }
+
     private List<String> sanitizeList(List<String> values) {
         if (values == null) {
             return List.of();

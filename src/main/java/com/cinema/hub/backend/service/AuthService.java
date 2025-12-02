@@ -28,7 +28,7 @@ import org.springframework.util.StringUtils;
 public class AuthService {
 
     private static final String DEFAULT_ROLE = "User";
-    private static final int RESET_TOKEN_EXPIRY_MINUTES = 15;
+    private static final int RESET_TOKEN_EXPIRY_MINUTES = 15;  //otp email expiery countdown in minute
     private static final Pattern PHONE_PATTERN = Pattern.compile("^\\d{10,11}$");
 
     private final UserAccountRepository userAccountRepository;

@@ -93,6 +93,7 @@ public class UserAdminServiceImpl implements UserAdminService {
         user.setRole(role);
         user.setActive(targetActive);
         if (StringUtils.hasText(request.getPassword())) {
+            validatePasswordRequired(request.getPassword());
             user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         }
         return toDto(userAccountRepository.save(user));

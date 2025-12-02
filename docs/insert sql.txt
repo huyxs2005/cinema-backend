@@ -53,21 +53,20 @@ VALUES
     (N'VIP',      N'Ghế vị trí đẹp', 1.20, 1),
     (N'Couple',   N'Ghế đôi cuối rạp', 2.00, 1);
 
-    /* Genres */
-MERGE INTO Genres AS t
-USING (VALUES
-    (N'Hoạt hành'),
-    (N'Thần thoại'),
-    (N'Hành động'),
-    (N'Phiêu lưu'),
-    (N'Nhạc kịch'),
-    (N'Tâm lý'),
-    (N'Tình cảm'),
-    (N'Kinh dị'),
-    (N'Hài')
-) AS g(Name)
-ON t.Name = g.Name
-WHEN NOT MATCHED THEN INSERT(Name) VALUES (g.Name);
+IF NOT EXISTS (SELECT 1 FROM Genres)
+BEGIN
+    INSERT INTO Genres (Name)
+    VALUES
+        (N'Hoạt hành'),
+        (N'Thần thoại'),
+        (N'Hành động'),
+        (N'Phiêu lưu'),
+        (N'Nhạc kịch'),
+        (N'Tâm lý'),
+        (N'Tình cảm'),
+        (N'Kinh dị'),
+        (N'Hài');
+END;
 
 
 

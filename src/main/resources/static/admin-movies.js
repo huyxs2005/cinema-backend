@@ -3,7 +3,8 @@ const movieAdminApi = {
     detail: (id) => `/api/admin/movies/${id}`,
     create: "/api/admin/movies",
     update: (id) => `/api/admin/movies/${id}`,
-    delete: (id) => `/api/admin/movies/${id}`
+    delete: (id) => `/api/admin/movies/${id}`,
+    genres: "/api/admin/movies/genres/all"
 };
 
 const movieDataBus = window.AdminDataBus || {
@@ -16,24 +17,27 @@ const AdminDataBus = window.AdminDataBus || {
     subscribe: () => () => {}
 };
 
-const GENRE_OPTIONS = [
-    { value: "Bí ẩn", label: "Bí ẩn" },
-    { value: "Ca nhạc", label: "Ca nhạc" },
-    { value: "Chính kịch", label: "Chính kịch" },
-    { value: "Gia đình", label: "Gia đình" },
-    { value: "Giật gân", label: "Giật gân" },
-    { value: "Hài", label: "Hài" },
-    { value: "Hành động", label: "Hành động" },
-    { value: "Hồi hộp", label: "Hồi hộp" },
-    { value: "Hoạt hình", label: "Hoạt hình" },
-    { value: "Khoa học viễn tưởng", label: "Khoa học viễn tưởng" },
-    { value: "Kinh dị", label: "Kinh dị" },
-    { value: "Phiêu lưu", label: "Phiêu lưu" },
-    { value: "Tâm lý", label: "Tâm lý" },
-    { value: "Thần thoại", label: "Thần thoại" },
-    { value: "Tình cảm", label: "Tình cảm" },
-    { value: "Tội phạm", label: "Tội phạm" }
-].sort((a, b) => a.label.localeCompare(b.label, "vi"));
+const FALLBACK_GENRES = [
+    "Hành động",
+    "Phiêu lưu",
+    "Hoạt hình",
+    "Hài",
+    "Tội phạm",
+    "Chính kịch",
+    "Gia đình",
+    "Kinh dị",
+    "Ca nhạc",
+    "Bí ẩn",
+    "Thần thoại",
+    "Tâm lý",
+    "Tình cảm",
+    "Khoa học viễn tưởng",
+    "Hồi hộp (Suspense)",
+    "Giật gân (Thriller)"
+];
+
+let genreOptions = [];
+let genreDropdownInitialized = false;
 
 const movieTextCompare = new Intl.Collator("vi", { sensitivity: "base" });
 
@@ -50,9 +54,10 @@ if (typeof createDebounce !== "function") {
     window.__ADMIN_DEBOUNCE_FACTORY__ = createDebounce;
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
     if (document.getElementById("movieForm")) {
         attachNumericOnlyHandlers();
+        await loadGenreOptions();
         initMovieAdminSection();
     }
 });
@@ -366,16 +371,25 @@ function buildMoviePayload() {
 function validateRequiredFields() {
     const errors = [];
     const titleInput = document.getElementById("movieTitle");
+    const descriptionInput = document.getElementById("movieDescription");
     const durationInput = document.getElementById("movieDuration");
     const posterInput = document.getElementById("moviePoster");
+    const ageSelect = document.getElementById("movieAgeRating");
     const releaseInput = document.getElementById("movieReleaseDate");
     const endInput = document.getElementById("movieEndDate");
+    const directorsInput = document.getElementById("movieDirectors");
+    const actorsInput = document.getElementById("movieActors");
 
     const title = titleInput.value.trim();
+    const description = descriptionInput?.value.trim() ?? "";
     const duration = Number(durationInput.value);
     const poster = posterInput.value.trim();
+    const ageValue = ageSelect?.value.trim();
     const releaseValue = releaseInput.value;
     const endValue = endInput.value;
+    const selectedGenres = getSelectedGenres();
+    const directors = directorsInput?.value.trim() ?? "";
+    const actors = actorsInput?.value.trim() ?? "";
 
     if (!title) {
         errors.push({ field: "movieTitle", message: "Vui lòng nhập tên phim *" });
@@ -383,24 +397,44 @@ function validateRequiredFields() {
     if (!duration || duration <= 0) {
         errors.push({ field: "movieDuration", message: "Vui lòng nhập thời lượng (phút) * lớn hơn 0" });
     } else if (duration > 900) {
-        errors.push({ field: "movieDuration", message: "Thời lượng tối da 900 phut" });
+        errors.push({ field: "movieDuration", message: "Thời lượng tối đa 900 phút" });
     }
     if (!poster) {
         errors.push({ field: "moviePoster", message: "Vui lòng chọn Poster *" });
+    }
+    if (!ageValue) {
+        errors.push({ field: "movieAgeRating", message: "Vui lòng chọn giới hạn độ tuổi *" });
+    }
+    if (!releaseValue) {
+        errors.push({ field: "movieReleaseDate", message: "Vui lòng chọn ngày khởi chiếu *" });
+    }
+    if (!endValue) {
+        errors.push({ field: "movieEndDate", message: "Vui lòng chọn ngày ngừng chiếu *" });
     }
     if (releaseValue && endValue) {
         const releaseDate = new Date(releaseValue);
         const endDate = new Date(endValue);
         if (endDate < releaseDate) {
-            errors.push({ field: "movieEndDate", message: "Ngày ngưng chiếu phải sau hoặc bằng ngày khởi chiếu" });
+            errors.push({ field: "movieEndDate", message: "Ngày ngừng chiếu phải sau hoặc bằng ngày khởi chiếu" });
         }
+    }
+    if (!selectedGenres.length) {
+        errors.push({ field: "genreDropdownBtn", message: "Vui lòng chọn ít nhất một thể loại *" });
     }
 
     const firstInvalid = errors.length ? document.getElementById(errors[0].field) : null;
     return { errors, firstInvalid };
 }
 function clearFieldErrors() {
-    ["movieTitle", "movieDuration", "moviePoster", "movieEndDate"].forEach((id) => {
+    [
+        "movieTitle",
+        "movieDuration",
+        "moviePoster",
+        "movieAgeRating",
+        "movieReleaseDate",
+        "movieEndDate",
+        "genreDropdownBtn"
+    ].forEach((id) => {
         document.getElementById(id)?.classList.remove("is-invalid");
         const errorBox = document.getElementById(`${id}Error`);
         if (errorBox) errorBox.textContent = "";
@@ -502,22 +536,45 @@ async function handlePosterUpload(event) {
     }
 }
 
+async function loadGenreOptions() {
+    try {
+        const response = await fetch(movieAdminApi.genres, { credentials: "same-origin" });
+        if (!response.ok) {
+            throw new Error("Không thể tải danh sách thể loại");
+        }
+        const data = await response.json();
+        const normalized = Array.isArray(data)
+            ? data
+                  .map((name) => (typeof name === "string" ? name.trim() : ""))
+                  .filter((name) => name.length > 0)
+            : [];
+        genreOptions = normalized.length ? normalized : [...FALLBACK_GENRES];
+    } catch (error) {
+        console.error(error);
+        genreOptions = [...FALLBACK_GENRES];
+    }
+}
+
 function renderGenreCheckboxes() {
     const list = document.getElementById("genreCheckboxList");
     if (!list) return;
     list.innerHTML = "";
-    GENRE_OPTIONS.forEach((genre) => {
-        const id = `genre-${genre.value.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
-        const wrapper = document.createElement("div");
-        wrapper.className = "form-check";
-        wrapper.innerHTML = `
-            <input class="form-check-input" type="checkbox" value="${genre.value}" id="${id}">
-            <label class="form-check-label" for="${id}">${genre.label}</label>
+    const options = genreOptions.length ? genreOptions.slice() : [...FALLBACK_GENRES];
+    options
+        .sort((a, b) => a.localeCompare(b, "vi"))
+        .forEach((name) => {
+            const id = `genre-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+            const wrapper = document.createElement("div");
+            wrapper.className = "form-check";
+            wrapper.innerHTML = `
+            <input class="form-check-input" type="checkbox" value="${name}" id="${id}">
+            <label class="form-check-label" for="${id}">${name}</label>
         `;
-        list.appendChild(wrapper);
-    });
+            list.appendChild(wrapper);
+        });
     updateGenreDropdownLabel();
     list.addEventListener("change", updateGenreDropdownLabel);
+    ensureGenreDropdownBehavior();
 }
 
 function getSelectedGenres() {
@@ -540,6 +597,26 @@ function updateGenreDropdownLabel() {
     if (!label) return;
     const selected = getSelectedGenres();
     label.textContent = selected.length ? selected.join(", ") : "Chọn thể loại";
+}
+
+function ensureGenreDropdownBehavior() {
+    if (genreDropdownInitialized) return;
+    const button = document.getElementById("genreDropdownBtn");
+    const menu = document.getElementById("genreCheckboxList");
+    if (!button || !menu) return;
+    genreDropdownInitialized = true;
+    const closeMenu = () => {
+        menu.classList.remove("show");
+    };
+    button.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        menu.classList.toggle("show");
+    });
+    menu.addEventListener("click", (event) => {
+        event.stopPropagation();
+    });
+    document.addEventListener("click", closeMenu);
 }
 
 function bindMovieFilters() {

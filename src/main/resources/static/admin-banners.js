@@ -913,7 +913,7 @@ function updateImageHint(path) {
     const hint = document.getElementById("imagePathHint");
     if (!hint) return;
     if (!path) {
-        hint.textContent = "Chưa có ảnh nào được tải lên.";
+        hint.textContent = "";
         hint.classList.remove("text-warning");
         return;
     }

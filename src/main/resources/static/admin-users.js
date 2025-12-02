@@ -349,29 +349,49 @@ function buildUserPayload() {
 
 function validateUserPayload(payload) {
     const errors = [];
+    const userIdInput = document.getElementById("userId");
+    const isNewUser = !userIdInput || !userIdInput.value;
+
     if (!payload.email || !EMAIL_PATTERN.test(payload.email)) {
-        errors.push({ field: "userEmail", message: "Email không hợp lệ *" });
+        errors.push({ field: "userEmail", message: "Email không hợp lệ" });
     }
     if (!payload.fullName) {
-        errors.push({ field: "userFullName", message: "Vui lòng nhập họ tên *" });
+        errors.push({ field: "userFullName", message: "Vui lòng nhập họ tên" });
     } else if (payload.fullName.length > 22) {
         errors.push({ field: "userFullName", message: "Họ tên tối đa 22 ký tự" });
     }
     if (!payload.phone || payload.phone.length < 10 || payload.phone.length > 11 || !/^\d+$/.test(payload.phone)) {
-        errors.push({ field: "userPhone", message: "Số điện thoại 10-11 chữ số *" });
+        errors.push({ field: "userPhone", message: "Số điện thoại 10-11 chữ số" });
     }
     if (!payload.role) {
-        errors.push({ field: "userRole", message: "Vui lòng chọn vai trò *" });
+        errors.push({ field: "userRole", message: "Vui lòng chọn vai trò" });
     }
-    const isEdit = Boolean(document.getElementById("userId").value);
-    if (!isEdit && !payload.password) {
-        errors.push({ field: "userPassword", message: "Vui lòng nhập mật khẩu *" });
-    }
-    if (payload.password && payload.password.length < 8) {
-        errors.push({ field: "userPassword", message: "Mật khẩu phải từ 8 ký tự *" });
-    }
-    if (payload.password !== payload.confirmPassword) {
-        errors.push({ field: "userConfirmPassword", message: "Mật khẩu xác nhận không khớp *" });
+
+    if (isNewUser) {
+        if (!payload.password) {
+            errors.push({ field: "userPassword", message: "Vui lòng nhập mật khẩu" });
+        } else if (payload.password.length < 8) {
+            errors.push({ field: "userPassword", message: "Mật khẩu phải từ 8 kí tự" });
+        }
+        if (!payload.confirmPassword) {
+            errors.push({ field: "userConfirmPassword", message: "Vui lòng xác nhận mật khẩu" });
+        } else if (payload.password !== payload.confirmPassword) {
+            errors.push({ field: "userConfirmPassword", message: "Mật khẩu xác nhận không khớp" });
+        }
+    } else {
+        const wantsPasswordChange = Boolean(payload.password) || Boolean(payload.confirmPassword);
+        if (wantsPasswordChange) {
+            if (!payload.password) {
+                errors.push({ field: "userPassword", message: "Vui lòng nhập mật khẩu mới" });
+            } else if (payload.password.length < 8) {
+                errors.push({ field: "userPassword", message: "Mật khẩu phải từ 8 kí tự" });
+            }
+            if (!payload.confirmPassword) {
+                errors.push({ field: "userConfirmPassword", message: "Vui lòng xác nhận mật khẩu" });
+            } else if (payload.password && payload.password !== payload.confirmPassword) {
+                errors.push({ field: "userConfirmPassword", message: "Mật khẩu xác nhận không khớp" });
+            }
+        }
     }
     return errors;
 }
@@ -461,19 +481,32 @@ function toggleUserActive(id, shouldActivate) {
     }
 }
 
-async function changeUserStatus(id, active) {
-    try {
-        const url = `${userApi.status(id)}?active=${active}`;
-        const response = await fetch(url, withCredentials({ method: "PATCH" }));
-        if (!response.ok) {
-            const data = await response.json().catch(() => ({}));
-            throw new Error(data.message || "Kh\xf4ng th\u1ec3 c\u1eadp nh\u1eadt tr\u1ea1ng th\xe1i");
-        }
-        fetchUsers(userState.page);
-    } catch (error) {
-        showUserErrorDialog(error.message);
-    }
-}
+async function changeUserStatus(id, active) {
+
+    try {
+
+        const url = `${userApi.status(id)}?active=${active}`;
+
+        const response = await fetch(url, withCredentials({ method: "PATCH" }));
+
+        if (!response.ok) {
+
+            const data = await response.json().catch(() => ({}));
+
+            throw new Error(data.message || "Kh\xf4ng th\u1ec3 c\u1eadp nh\u1eadt tr\u1ea1ng th\xe1i");
+
+        }
+
+        fetchUsers(userState.page);
+
+    } catch (error) {
+
+        showUserErrorDialog(error.message);
+
+    }
+
+}
+
 
 function confirmDeleteUser(id) {
     const proceed = () => deleteUser(id);
@@ -491,34 +524,60 @@ function confirmDeleteUser(id) {
     }
 }
 
-async function deleteUser(id) {
-    try {
-        const response = await fetch(userApi.delete(id), withCredentials({ method: "DELETE" }));
-        if (!response.ok) {
-            const data = await response.json().catch(() => ({}));
-            throw new Error(data.message || "Kh\xf4ng th\u1ec3 x\xf3a ng\u01b0\u1eddi d\xf9ng");
-        }
-        showSuccessToast("\u0110\xe3 x\xf3a t\xe0i kho\u1ea3n");
-        fetchUsers(userState.page);
-    } catch (error) {
-        showUserErrorDialog(error.message);
-    }
-}
+async function deleteUser(id) {
+
+    try {
+
+        const response = await fetch(userApi.delete(id), withCredentials({ method: "DELETE" }));
+
+        if (!response.ok) {
+
+            const data = await response.json().catch(() => ({}));
+
+            throw new Error(data.message || "Kh\xf4ng th\u1ec3 x\xf3a ng\u01b0\u1eddi d\xf9ng");
+
+        }
+
+        showSuccessToast("\u0110\xe3 x\xf3a t\xe0i kho\u1ea3n");
+
+        fetchUsers(userState.page);
+
+    } catch (error) {
+
+        showUserErrorDialog(error.message);
+
+    }
+
+}
+
 
 function showUserErrorDialog(message) {
-    const content = message || "\u0110\xe3 x\u1ea3y ra l\u1ed7i, vui l\u00f2ng th\u1eed l\u1ea1i.";
-    if (typeof window.openAdminNotice === "function") {
-        openAdminNotice({
-            title: "Kh\u00f4ng th\u1ec3 th\u1ef1c hi\u1ec7n",
-            message: content,
-            buttonLabel: "\u0110\xe3 hi\u1ec3u",
-            variant: "warning"
-        });
-    } else {
-        alert(content);
-    }
-}
-
+    const content = message || "\u0110\xe3 x\u1ea3y ra l\u1ed7i, vui l\u00f2ng th\u1eed l\u1ea1i.";
+
+    if (typeof window.openAdminNotice === "function") {
+
+        openAdminNotice({
+
+            title: "Kh\u00f4ng th\u1ec3 th\u1ef1c hi\u1ec7n",
+
+            message: content,
+
+            buttonLabel: "\u0110\xe3 hi\u1ec3u",
+
+            variant: "warning"
+
+        });
+
+    } else {
+
+        alert(content);
+
+    }
+
+}
+
+
+
 function formatDateTimeDisplay(value) {
     if (!value) return "-";
     const date = new Date(value);

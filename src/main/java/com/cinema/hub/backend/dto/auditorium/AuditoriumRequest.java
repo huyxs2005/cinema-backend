@@ -22,7 +22,7 @@ public class AuditoriumRequest {
 
     @NotNull(message = "Số ghế mỗi hàng bắt buộc phải nhập")
     @Min(value = 1, message = "Số ghế mỗi hàng phải lớn hơn 0")
-    @Max(value = 30, message = "Số ghế mỗi hàng tối đa là 30")
+    @Max(value = 20, message = "Số ghế mỗi hàng tối đa là 20")
     private Integer numberOfColumns;
 
     @NotNull(message = "Số hàng ghế thường bắt buộc phải nhập")

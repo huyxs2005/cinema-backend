@@ -9,6 +9,9 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.cinema.hub.backend.entity.enums.BookingStatus;
+import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -55,4 +58,28 @@ public interface BookingRepository extends JpaRepository<Booking, Integer> {
         where b.id = :bookingId
     """)
     Optional<Booking> findDetailedById(@Param("bookingId") Integer bookingId);
+
+    @Query("""
+        select case when count(b) > 0 then true else false end
+        from Booking b
+        join b.showtime st
+        where st.id = :showtimeId
+          and st.endTime > :threshold
+          and b.bookingStatus in :protectedStatuses
+    """)
+    boolean existsActiveBookingForShowtime(@Param("showtimeId") Integer showtimeId,
+                                           @Param("threshold") LocalDateTime threshold,
+                                           @Param("protectedStatuses") Collection<BookingStatus> protectedStatuses);
+
+    @Query("""
+        select case when count(b) > 0 then true else false end
+        from Booking b
+        join b.showtime st
+        where st.auditorium.id = :auditoriumId
+          and st.endTime > :threshold
+          and b.bookingStatus in :protectedStatuses
+    """)
+    boolean existsActiveBookingForAuditorium(@Param("auditoriumId") Integer auditoriumId,
+                                             @Param("threshold") LocalDateTime threshold,
+                                             @Param("protectedStatuses") Collection<BookingStatus> protectedStatuses);
 }

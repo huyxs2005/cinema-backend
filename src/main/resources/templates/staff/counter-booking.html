@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đặt vé tại quầy - Cinema HUB Staff</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+          integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/styles.css}">
+    <link rel="stylesheet" th:href="@{/staff/staff-ui.css}">
+</head>
+<body class="staff-theme page-surface">
+<th:block th:replace="~{fragments/header :: main}"></th:block>
+
+<main class="content-shell staff-shell">
+    <section class="staff-container staff-booking-page" id="staffBookingRoot"
+             th:attr="data-initial-showtime=${initialShowtimeId},
+                      data-showtime-endpoint=@{/api/staff/showtimes},
+                      data-booking-endpoint=@{/api/staff/bookings},
+                      data-seat-fragment-template='/movies/seat-fragment/:id',
+                      data-movies-endpoint=@{/api/movies/now-showing}">
+        <section class="staff-hero">
+            <div>
+                <p class="staff-eyebrow">Đặt vé tại quầy</p>
+                <h1>Tạo vé thủ công giống trải nghiệm khách hàng</h1>
+                <p>Chọn phim đang chiếu, chọn suất, khóa ghế, điền thông tin khách và xuất vé hoặc thu tiền ngay tại quầy.</p>
+            </div>
+        </section>
+
+        <div class="booking-layout">
+            <div>
+                <article class="step-card">
+                    <div class="step-head">
+                        <div class="step-number">1</div>
+                        <div>
+                            <h2>Chọn phim & suất chiếu</h2>
+                            <p>Hiển thị danh sách phim đang chiếu và các suất phù hợp để nhân viên thao tác giống trang khách hàng.</p>
+                        </div>
+                    </div>
+                    <div class="movie-pill-grid" id="staffMovieList" role="listbox"></div>
+                    <p class="text-muted mt-2" id="staffMovieEmpty">Đang tải danh sách phim...</p>
+                    <div class="showtime-chip-grid mt-4" id="staffShowtimeList"></div>
+                    <p class="text-muted mt-2" id="staffShowtimeEmpty">Chọn phim để xem các suất đang mở.</p>
+                </article>
+
+                <article class="detail-card" id="bookingShowtimeCard" hidden>
+                    <h2>Thông tin suất chiếu</h2>
+                    <p class="muted">Kiểm tra phim, phòng và mức độ lấp đầy trước khi giữ ghế.</p>
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Phim</dt>
+                        <dd class="col-sm-8" id="detailMovie">---</dd>
+                        <dt class="col-sm-4">Phòng</dt>
+                        <dd class="col-sm-8" id="detailAuditorium">---</dd>
+                        <dt class="col-sm-4">Thời gian</dt>
+                        <dd class="col-sm-8" id="detailTime">---</dd>
+                        <dt class="col-sm-4">Lấp đầy</dt>
+                        <dd class="col-sm-8" id="detailOccupancy">---</dd>
+                    </dl>
+                </article>
+
+                <article class="step-card seat-selection-wrapper">
+                    <div class="step-head">
+                        <div class="step-number">2</div>
+                        <div>
+                            <h2>Chọn ghế</h2>
+                            <p>Giữ ghế trực tiếp trên sơ đồ như giao diện khách hàng.</p>
+                        </div>
+                    </div>
+                    <div id="seatSelectionWrapper">
+                        <div class="text-center py-4" id="seatSelectionPlaceholder">
+                            Vui lòng chọn suất chiếu để hiển thị sơ đồ ghế.
+                        </div>
+                        <div id="staffSeatFragment"></div>
+                    </div>
+                </article>
+            </div>
+
+            <div>
+                <article class="step-card">
+                    <div class="step-head">
+                        <div class="step-number">3</div>
+                        <div>
+                            <h2>Thông tin khách hàng</h2>
+                            <p>Nhập thông tin liên hệ và phương thức thanh toán.</p>
+                        </div>
+                    </div>
+                    <form id="staffBookingForm" class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label" for="customerFullName">Họ tên khách<span class="text-danger">*</span></label>
+                            <input class="form-control" id="customerFullName" name="customerFullName" placeholder="Nguyễn Văn A" required type="text">
+                            <p class="input-error" data-error-for="customerFullName"></p>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="customerPhone">Số điện thoại<span class="text-danger">*</span></label>
+                            <input class="form-control" id="customerPhone" name="customerPhone" placeholder="0901 234 567" required type="tel">
+                            <p class="input-error" data-error-for="customerPhone"></p>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="customerEmail">Email</label>
+                            <input class="form-control" id="customerEmail" name="customerEmail" placeholder="khach@cinema.vn" type="email">
+                            <p class="input-error" data-error-for="customerEmail"></p>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label" for="discountSelect">Khuyến mãi / Giảm giá</label>
+                            <select class="form-select" id="discountSelect">
+                                <option value="0" data-percent="0">Không giảm giá – 0%</option>
+                                <option value="0.2" data-percent="0.2">Trẻ em, người cao tuổi, người có công – Giảm 20%</option>
+                                <option value="0.5" data-percent="0.5">Người khuyết tật – Giảm 50%</option>
+                                <option value="1" data-percent="1">Trẻ em dưới 0.7m đi cùng người lớn – Giảm 100%</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label">Phương thức thanh toán</label>
+                            <div class="payment-methods">
+                                <label class="payment-option">
+                                    <input type="radio" name="paymentMethod" value="CASH" checked>
+                                    <span>Tiền mặt</span>
+                                </label>
+                                <label class="payment-option">
+                                    <input type="radio" name="paymentMethod" value="TRANSFER">
+                                    <span>Chuyển khoản</span>
+                                </label>
+                            </div>
+                            <div class="bank-transfer-panel" id="bankTransferPanel" hidden>
+                                <div class="bank-transfer-info">
+                                    <p class="bank-name">MB Bank - DAO NAM HAI</p>
+                                    <p class="bank-number">Số tài khoản: 0931630902</p>
+                                    <p class="bank-note">QR sẽ tự động điều chỉnh đúng số tiền sau khi khóa ghế.</p>
+                                    <img th:src="@{/img/bank-transfer-qr.svg}" src="/img/bank-transfer-qr.svg" alt="MB Bank QR" loading="lazy">
+                                </div>
+                                <p class="helper-text">Xác nhận khách đã chuyển khoản trước khi nhấn "Xác nhận tạo vé".</p>
+                            </div>
+                        </div>
+                    </form>
+                </article>
+
+                <article class="step-card booking-summary-card">
+                    <h2>Tạm tính vé</h2>
+                    <p class="text-muted mb-2">Số ghế đã chọn: <strong id="summarySeatCount">0</strong></p>
+                    <ul class="list-unstyled" id="summarySeatList"></ul>
+                    <div class="summary-total">
+                        <span>Tổng tiền</span>
+                        <strong id="summaryTotal">0 đ</strong>
+                    </div>
+                    <div class="booking-result" id="bookingResult" hidden>
+                        <p>Mã đặt vé: <strong id="bookingCodeLabel">---</strong></p>
+                        <p class="text-muted mb-0" id="bookingStatusLabel">---</p>
+                    </div>
+                    <p class="text-warning" id="bookingError" hidden></p>
+                    <div class="btn-group mt-3">
+                        <button class="btn btn-primary" id="createBookingBtn" type="button">Xác nhận tạo vé</button>
+                        <button class="btn btn-outline-light" id="printTicketBtn" type="button" disabled>In vé (PDF)</button>
+                    </div>
+                </article>
+            </div>
+        </div>
+        <div class="staff-toast" id="staffBookingToast" role="status"></div>
+    </section>
+</main>
+
+<th:block th:replace="~{fragments/footer :: main}"></th:block>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
+<script th:src="@{/auth.js}"></script>
+<script th:src="@{/seat-selection.js}"></script>
+<script th:src="@{/staff/staff-booking.js}"></script>
+</body>
+</html>

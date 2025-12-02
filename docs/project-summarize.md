@@ -72,3 +72,27 @@ Với file này, mọi người sẽ nắm được các module chính và cách
 - Quy trinh thanh toan tach khoi modal cu, nut `Thanh toan` tren seat-picker chuyen nguoi dung den `/checkout/{showtimeId}?token=...` va render bang Thymeleaf.
 - Trang checkout goi `/api/payment/payos/checkout` ngay khi load de xin QR, hien thong tin PayOS, dem nguoc thoi gian giu ghe va poll trang thai booking truoc khi redirect `/movies/confirmation/{bookingCode}`.
 - Khi user refresh/roi trang hoac quay lai chon ghe, booking cho va hold cu duoc huy/giai phong de tranh giu ghe khong can thiet.
+
+## 6. Prompt cho lần trò chuyện kế tiếp
+Anh/chị trợ lý kế tiếp cần nắm rõ các điểm sau để tiếp tục làm việc:
+
+1. **Seat picker & hold logic**
+   - `seat-selection.js` hiện đã bỏ giới hạn 6 ghế; biến `maxSelection` có thể bằng 0 để hiểu là “không giới hạn”.
+   - UI khởi động timer 10 phút ngay khi khay ghế mở và phải giữ đồng bộ với backend (server là nguồn chân lý về `expiresAt`).
+   - Backend (`SeatReservationService.holdSeats`) cho phép giữ lại `expiresAt` cũ khi client gửi `previousHoldToken`, nhưng hiện chúng ta đã chuyển về cơ chế chỉ cho một phiên duy nhất/10 phút.
+   - Đã vá lỗi “Phiên giữ ghế đã hết hạn” bằng cách hạn chế client chỉ gửi một request `/api/showtimes/{id}/holds` tại một thời điểm (biến `holdSyncInFlight`, `holdSyncPending`, `lastSyncedSeatKey`). Nếu cần thay đổi thêm, phải đảm bảo không xóa hold cũ trước khi hold mới thành công.
+
+2. **PayOS Checkout**
+   - `/checkout/{showtimeId}` tải QR qua `/api/payment/payos/checkout` và poll webhook `/api/payment/webhook`. PayOS trả trạng thái qua webhook → `PaymentService` phát hành vé, gửi email (HTML/PDF từ `ticket-pdf.html`).
+   - PDF đã được viết lại theo XHTML để OpenHTML2PDF không lỗi; tiếp tục dùng font có hỗ trợ tiếng Việt không dấu.
+
+3. **Nhiệm vụ mong đợi cho phiên tới (gợi ý)**
+   - Kiểm thử thủ công seat picker để chắc chắn timer không reset vô cớ, giữ ghế đúng 10 phút và giải phóng khi rời trang.
+   - Nếu phát sinh lỗi mới (ví dụ load ghế bị 400, hoặc PayOS không redirect), cần kiểm tra `SeatReservationService`, `seat-selection.js`, `PaymentService` và log PayOS webhook.
+
+> Prompt mẫu cho phiên tiếp theo:
+```
+Bạn đang làm việc trên Cinema HUB (Spring Boot + Thymeleaf). Seat picker (`seat-selection.js`) vừa được sửa để bỏ giới hạn 6 ghế và dùng cơ chế đồng bộ hold một lần trong 10 phút. Hãy kiểm tra thực tế việc chọn nhiều ghế liên tiếp, đảm bảo API `/api/showtimes/{id}/holds` không trả 400 nữa và phần timer hiển thị đúng thời gian còn lại. Nếu phát hiện lỗi hãy mô tả rõ bước tái hiện và sửa cả frontend/backend cần thiết. Luôn chạy `mvn -q test` sau khi chỉnh.
+```
+
+Nhờ ghi nhớ các file trọng tâm: `src/main/resources/static/seat-selection.js`, `SeatHoldRequest`, `SeatReservationService`, `seat-selection.html`, `ticket-pdf.html`.***

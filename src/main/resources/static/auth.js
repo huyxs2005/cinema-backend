@@ -26,6 +26,14 @@ const StorageKeys = {
     seatIntent: "cinemaSeatIntent"
 };
 const DEFAULT_REDIRECT_TTL = 5 * 60 * 1000;
+const ticketHistoryState = {
+    page: 0,
+    size: 10,
+    totalPages: 0,
+    totalElements: 0,
+    userId: null,
+    loading: false
+};
 let modalOverlayRef = null;
 const modalMap = {};
 let userMenuInitialized = false;
@@ -99,10 +107,14 @@ function updateUserMenuDisplay(user) {
 
 function updateAdminMenuVisibility(user) {
     const adminButton = document.querySelector('#userMenuDropdown [data-user-action="admin"]');
+    const analyticsButton = document.querySelector('#userMenuDropdown [data-user-action="analytics"]');
     const staffButton = document.querySelector('#userMenuDropdown [data-user-action="staff"]');
     const roleName = resolveRoleName(user?.role || user);
     if (adminButton) {
         adminButton.classList.toggle("hidden", roleName !== "ADMIN");
+    }
+    if (analyticsButton) {
+        analyticsButton.classList.toggle("hidden", roleName !== "ADMIN");
     }
     if (staffButton) {
         staffButton.classList.toggle("hidden", roleName !== "STAFF");
@@ -295,8 +307,12 @@ function handleUserMenuAction(action) {
         window.location.href = "/profile";
         return;
     }
-    if (action === "admin") {
+    if (action === "analytics") {
         window.location.href = "/admin/dashboard";
+        return;
+    }
+    if (action === "admin") {
+        window.location.href = "/admin/workspace";
         return;
     }
     if (action === "staff") {
@@ -607,7 +623,24 @@ function initializeProfilePage() {
     }
 
     loadProfileData(user);
+    ticketHistoryState.userId = user.userId;
+    ticketHistoryState.page = 0;
     loadTicketHistory(user);
+
+    document.getElementById("ticketHistoryPrev")?.addEventListener("click", () => {
+        if (ticketHistoryState.page > 0 && !ticketHistoryState.loading) {
+            loadTicketHistory(null, ticketHistoryState.page - 1);
+        }
+    });
+    document.getElementById("ticketHistoryNext")?.addEventListener("click", () => {
+        if (
+            ticketHistoryState.totalPages > 0 &&
+            ticketHistoryState.page + 1 < ticketHistoryState.totalPages &&
+            !ticketHistoryState.loading
+        ) {
+            loadTicketHistory(null, ticketHistoryState.page + 1);
+        }
+    });
 
     profileTabs.querySelectorAll(".tab-button").forEach((btn) => {
         btn.addEventListener("click", () => switchProfileTab(btn.getAttribute("data-tab-target")));
@@ -715,14 +748,73 @@ function renderTicketHistory(entries) {
     });
 }
 
-async function loadTicketHistory(user) {
+function updateTicketHistoryPagination(pageData) {
+    const summaryEl = document.getElementById("ticketHistorySummary");
+    const indicatorEl = document.getElementById("ticketHistoryPage");
+    const prevBtn = document.getElementById("ticketHistoryPrev");
+    const nextBtn = document.getElementById("ticketHistoryNext");
+    if (!pageData) {
+        return;
+    }
+    const totalElements = pageData.totalElements ?? 0;
+    const totalPages = pageData.totalPages ?? 0;
+    const size = pageData.size ?? ticketHistoryState.size;
+    const currentPage = totalPages > 0 ? Math.max(0, Math.min(pageData.page ?? 0, totalPages - 1)) : 0;
+    ticketHistoryState.page = currentPage;
+    ticketHistoryState.totalPages = totalPages;
+    ticketHistoryState.totalElements = totalElements;
+
+    if (summaryEl) {
+        if (totalElements === 0) {
+            summaryEl.textContent = "Không có lịch sử mua vé";
+        } else {
+            const visibleCount = pageData.content?.length ?? Math.min(size, totalElements);
+            const start = currentPage * size + 1;
+            const end = Math.min(start + visibleCount - 1, totalElements);
+            summaryEl.textContent = `Hiển thị ${start}-${end} / ${totalElements}`;
+        }
+    }
+
+    if (indicatorEl) {
+        indicatorEl.textContent = totalPages > 0 ? `${currentPage + 1} / ${totalPages}` : "0 / 0";
+    }
+
+    const disablePrev = currentPage <= 0;
+    const disableNext = totalPages === 0 || currentPage >= totalPages - 1;
+    if (prevBtn) {
+        prevBtn.disabled = disablePrev;
+        prevBtn.classList.toggle("disabled", disablePrev);
+    }
+    if (nextBtn) {
+        nextBtn.disabled = disableNext;
+        nextBtn.classList.toggle("disabled", disableNext);
+    }
+}
+
+async function loadTicketHistory(user, targetPage = ticketHistoryState.page) {
     const tbody = document.getElementById("ticketHistoryBody");
     if (!tbody) {
         return;
     }
+    if (ticketHistoryState.loading) {
+        return;
+    }
+    if (user?.userId) {
+        ticketHistoryState.userId = user.userId;
+    }
+    const userId = ticketHistoryState.userId;
+    if (!userId) {
+        return;
+    }
+    const safePage = Math.max(0, targetPage);
+    ticketHistoryState.loading = true;
     try {
-        const history = await apiRequest(ProfileAPI.history(user.userId));
-        const formatted = history.map((item) => ({
+        const params = new URLSearchParams({
+            page: safePage.toString(),
+            size: ticketHistoryState.size.toString()
+        });
+        const historyPage = await apiRequest(`${ProfileAPI.history(userId)}?${params.toString()}`);
+        const formatted = (historyPage.content ?? []).map((item) => ({
             bookingCode: item.bookingCode,
             date: formatHistoryDate(item.purchasedAt || item.showtime),
             movie: [item.movieTitle, item.theaterName].filter(Boolean).join(" • "),
@@ -731,10 +823,20 @@ async function loadTicketHistory(user) {
             amount: formatCurrency(item.total)
         }));
         renderTicketHistory(formatted);
+        updateTicketHistoryPagination(historyPage);
     } catch (error) {
         console.error("Load ticket history failed", error);
         renderTicketHistory([]);
-        showProfileToast(error.message || "Kh?ng th? t?i l?ch s? mua v?", "error");
+        updateTicketHistoryPagination({
+            content: [],
+            page: 0,
+            size: ticketHistoryState.size,
+            totalElements: 0,
+            totalPages: 0
+        });
+        showProfileToast(error.message || "Không thể tải lịch sử mua vé", "error");
+    } finally {
+        ticketHistoryState.loading = false;
     }
 }
 

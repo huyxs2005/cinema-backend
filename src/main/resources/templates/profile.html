@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
@@ -75,6 +75,14 @@
                 </tr>
                 </tbody>
             </table>
+        </div>
+        <div class="ticket-history-footer">
+            <div class="history-summary" id="ticketHistorySummary">Chưa có dữ liệu</div>
+            <div class="history-pagination">
+                <button class="btn btn-outline-light btn-sm" id="ticketHistoryPrev" type="button">Trước</button>
+                <span class="history-page-indicator" id="ticketHistoryPage">1 / 1</span>
+                <button class="btn btn-outline-light btn-sm" id="ticketHistoryNext" type="button">Sau</button>
+            </div>
         </div>
     </section>
 </main>

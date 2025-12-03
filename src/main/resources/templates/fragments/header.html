@@ -70,6 +70,10 @@
                             <span class="chevron"></span>
                         </button>
                         <div class="user-menu-dropdown" id="userMenuDropdown">
+                            <button type="button" data-user-action="analytics"
+                                    th:classappend="${(currentUser == null or currentUser.role == null or currentUser.role.name != 'ADMIN') ? ' hidden' : ''}">
+                                Báo cáo doanh thu
+                            </button>
                             <button type="button" data-user-action="profile">Thông tin cá nhân</button>
                             <button type="button" data-user-action="admin"
                                     th:classappend="${(currentUser == null or currentUser.role == null or currentUser.role.name != 'ADMIN') ? ' hidden' : ''}">

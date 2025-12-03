@@ -4,16 +4,18 @@ import com.cinema.hub.backend.entity.Booking;
 import com.cinema.hub.backend.entity.UserAccount;
 import com.cinema.hub.backend.entity.enums.BookingStatus;
 import jakarta.persistence.LockModeType;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-
-import com.cinema.hub.backend.entity.enums.BookingStatus;
-import java.time.LocalDateTime;
-import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
 
 public interface BookingRepository extends JpaRepository<Booking, Integer> {
 
@@ -47,8 +49,9 @@ public interface BookingRepository extends JpaRepository<Booking, Integer> {
     Optional<Booking> findByBookingCodeAndUserWithShowtime(@Param("bookingCode") String bookingCode,
                                                            @Param("user") UserAccount user);
 
-    List<Booking> findTop10ByUserAndBookingStatusOrderByCreatedAtDesc(UserAccount user,
-                                                                      BookingStatus bookingStatus);
+    Page<Booking> findByUserAndBookingStatusOrderByCreatedAtDesc(UserAccount user,
+                                                                 BookingStatus bookingStatus,
+                                                                 Pageable pageable);
 
     @Query("""
         select b from Booking b
@@ -58,6 +61,56 @@ public interface BookingRepository extends JpaRepository<Booking, Integer> {
         where b.id = :bookingId
     """)
     Optional<Booking> findDetailedById(@Param("bookingId") Integer bookingId);
+
+    List<Booking> findByCreatedAtBetween(OffsetDateTime start, OffsetDateTime end);
+
+    Page<Booking> findByCreatedAtBetween(OffsetDateTime start, OffsetDateTime end, Pageable pageable);
+
+    List<Booking> findByPaidAtBetween(OffsetDateTime start, OffsetDateTime end);
+
+    List<Booking> findByCancelledAtBetween(OffsetDateTime start, OffsetDateTime end);
+
+    @Query("""
+        select coalesce(sum(b.finalAmount), 0)
+        from Booking b
+        where b.paymentStatus = com.cinema.hub.backend.entity.enums.PaymentStatus.Paid
+          and b.createdAt between :start and :end
+    """)
+    BigDecimal sumPaidAmountBetween(@Param("start") OffsetDateTime start, @Param("end") OffsetDateTime end);
+
+    @Query("""
+        select b.paymentStatus, count(b)
+        from Booking b
+        where b.createdAt between :start and :end
+        group by b.paymentStatus
+    """)
+    List<Object[]> countByPaymentStatusBetween(@Param("start") OffsetDateTime start,
+                                               @Param("end") OffsetDateTime end);
+
+    @Query("""
+        select b.bookingStatus, count(b)
+        from Booking b
+        where b.createdAt between :start and :end
+        group by b.bookingStatus
+    """)
+    List<Object[]> countByBookingStatusBetween(@Param("start") OffsetDateTime start,
+                                               @Param("end") OffsetDateTime end);
+
+    @Query("""
+        select coalesce(lower(b.paymentMethod), 'unknown'), count(b), coalesce(sum(b.finalAmount), 0)
+        from Booking b
+        where b.paymentStatus = com.cinema.hub.backend.entity.enums.PaymentStatus.Paid
+          and b.createdAt between :start and :end
+        group by lower(b.paymentMethod)
+    """)
+    List<Object[]> aggregateRevenueByPaymentMethodBetween(@Param("start") OffsetDateTime start,
+                                                          @Param("end") OffsetDateTime end);
+
+    @Query("select min(b.createdAt) from Booking b")
+    OffsetDateTime findEarliestCreatedAt();
+
+    @Query("select max(b.createdAt) from Booking b")
+    OffsetDateTime findLatestCreatedAt();
 
     @Query("""
         select case when count(b) > 0 then true else false end

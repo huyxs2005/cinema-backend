@@ -32,7 +32,12 @@ public class AuthPageController {
     }
 
     @GetMapping("/admin/dashboard")
-    public String adminDashboard() {
+    public String adminAnalyticsDashboard() {
+        return "admin/dashboard";
+    }
+
+    @GetMapping("/admin/workspace")
+    public String adminWorkspace() {
         return "admin-dashboard";
     }
 }

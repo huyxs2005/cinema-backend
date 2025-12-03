@@ -46,7 +46,7 @@ Cinema HUB là hệ thống quản lý rạp chiếu phim (Spring Boot + Thymele
 
 ## 3. Workflow tổng quan
 1. **Khởi động**: `mvn spring-boot:run`. Database SQL Server (schema script `docs/sql.txt`, seed `docs/insert sql.txt`). Nhớ ALTER `Auditoriums` thêm `NumberOfRows/Columns`.
-2. **Frontend**: truy cập `/` để xem trang khách. `/admin/dashboard` cho admin.
+2. **Frontend**: truy cập `/` để xem trang khách. `/admin/dashboard` hiển thị báo cáo doanh thu; `/admin/workspace` cho admin thao tác CRUD.
 3. **Quy trình tạo nội dung**:
    - Tạo phòng chiếu → suất chiếu (tự clone seat snapshot) → banner → phim.
    - Tính năng lặp suất chiếu tiết kiệm thao tác mass scheduling.

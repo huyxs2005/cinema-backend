@@ -4,6 +4,7 @@ import com.cinema.hub.backend.dto.CreateBookingRequest;
 import com.cinema.hub.backend.dto.CreateBookingResponse;
 import com.cinema.hub.backend.dto.SeatHoldRequest;
 import com.cinema.hub.backend.dto.SeatHoldResponse;
+import com.cinema.hub.backend.dto.common.PageResponse;
 import com.cinema.hub.backend.entity.Booking;
 import com.cinema.hub.backend.entity.BookingSeat;
 import com.cinema.hub.backend.entity.UserAccount;
@@ -20,13 +21,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
 import com.cinema.hub.backend.util.SeatTypeLabelResolver;
 import com.cinema.hub.backend.util.TimeProvider;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 
 @Service
 @RequiredArgsConstructor
@@ -103,32 +104,14 @@ public class BookingService {
     }
 
     @Transactional(readOnly = true)
-    public List<BookingHistoryView> getBookingHistory(UserAccount user) {
-        return bookingRepository.findTop10ByUserAndBookingStatusOrderByCreatedAtDesc(user, BookingStatus.Confirmed)
-                .stream()
-                .map(booking -> {
-                    List<String> seatLabels = loadSeatLabels(booking);
-                    if (seatLabels.isEmpty()) {
-                        return null;
-                    }
-                    BigDecimal totalAmount = booking.getFinalAmount() != null && booking.getFinalAmount().signum() > 0
-                            ? booking.getFinalAmount()
-                            : booking.getTotalAmount();
-                    return BookingHistoryView.builder()
-                            .bookingCode(booking.getBookingCode())
-                            .movieTitle(booking.getShowtime().getMovie().getTitle())
-                            .format(resolveBookingFormat(booking))
-                            .theaterName(booking.getShowtime().getAuditorium().getName())
-                            .showtime(booking.getShowtime().getStartTime())
-                            .seatLabels(String.join(", ", seatLabels))
-                            .ticketCount(seatLabels.size())
-                            .total(totalAmount)
-                            .purchasedAt(booking.getPaidAt() != null ? booking.getPaidAt() : booking.getCreatedAt())
-                            .status(booking.getBookingStatus())
-                            .build();
-                })
-                .filter(Objects::nonNull)
-                .toList();
+    public PageResponse<BookingHistoryView> getBookingHistory(UserAccount user, int page, int size) {
+        Page<BookingHistoryView> historyPage = bookingRepository
+                .findByUserAndBookingStatusOrderByCreatedAtDesc(
+                        user,
+                        BookingStatus.Confirmed,
+                        PageRequest.of(page, size))
+                .map(this::mapBookingToHistoryView);
+        return PageResponse.from(historyPage);
     }
 
 
@@ -180,6 +163,25 @@ public class BookingService {
 
     private String resolveBookingFormat(Booking booking) {
         return "2D";
+    }
+
+    private BookingHistoryView mapBookingToHistoryView(Booking booking) {
+        List<String> seatLabels = loadSeatLabels(booking);
+        BigDecimal totalAmount = booking.getFinalAmount() != null && booking.getFinalAmount().signum() > 0
+                ? booking.getFinalAmount()
+                : booking.getTotalAmount();
+        return BookingHistoryView.builder()
+                .bookingCode(booking.getBookingCode())
+                .movieTitle(booking.getShowtime().getMovie().getTitle())
+                .format(resolveBookingFormat(booking))
+                .theaterName(booking.getShowtime().getAuditorium().getName())
+                .showtime(booking.getShowtime().getStartTime())
+                .seatLabels(String.join(", ", seatLabels))
+                .ticketCount(seatLabels.size())
+                .total(totalAmount)
+                .purchasedAt(booking.getPaidAt() != null ? booking.getPaidAt() : booking.getCreatedAt())
+                .status(booking.getBookingStatus())
+                .build();
     }
 
     private List<String> loadSeatLabels(Booking booking) {

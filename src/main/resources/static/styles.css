@@ -2106,6 +2106,31 @@ body {
 .ticket-table tbody tr:last-child td {
     border-bottom: none;
 }
+
+.ticket-history-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem 1.5rem;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.history-summary {
+    font-size: 0.9rem;
+    color: #cbd5f5;
+}
+
+.history-pagination {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.history-page-indicator {
+    font-size: 0.9rem;
+    color: #e5e7eb;
+}
 .required {
     color: #f87171;
     font-weight: 600;

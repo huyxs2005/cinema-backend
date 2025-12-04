@@ -3,70 +3,645 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trung tâm vận hành quầy vé - Cinema HUB</title>
+    <title>Staff Portal - Cinema HUB</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
           integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link rel="stylesheet" th:href="@{/styles.css}">
     <link rel="stylesheet" th:href="@{/staff/staff-ui.css}">
+    <style>
+        .staff-portal {
+            display: flex;
+            min-height: 100vh;
+            background: var(--staff-bg);
+        }
+        .staff-sidebar {
+            width: 280px;
+            background: var(--staff-surface);
+            border-right: 1px solid var(--staff-border);
+            padding: 24px 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 100;
+        }
+        .staff-sidebar-header {
+            padding: 0 24px 24px;
+            border-bottom: 1px solid var(--staff-border);
+            margin-bottom: 24px;
+        }
+        .staff-sidebar-header h2 {
+            font-size: 1.5rem;
+            margin: 0 0 8px;
+        }
+        .staff-sidebar-header p {
+            color: var(--staff-muted);
+            margin: 0;
+            font-size: 0.9rem;
+        }
+        .staff-sidebar-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .staff-sidebar-menu li {
+            margin: 0;
+        }
+        .staff-sidebar-menu a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 24px;
+            color: var(--staff-text);
+            text-decoration: none;
+            transition: background 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+        .staff-sidebar-menu a:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .staff-sidebar-menu a.active {
+            background: rgba(106, 200, 255, 0.1);
+            border-left-color: var(--staff-accent);
+            color: var(--staff-accent);
+        }
+        .staff-sidebar-menu a i {
+            width: 20px;
+            text-align: center;
+        }
+        .staff-content {
+            flex: 1;
+            margin-left: 280px;
+            padding: 24px;
+        }
+        .staff-page {
+            display: none;
+        }
+        .staff-page.active {
+            display: block;
+        }
+        .page-header {
+            margin-bottom: 32px;
+        }
+        .page-header h1 {
+            font-size: 2rem;
+            margin: 0 0 8px;
+        }
+        .page-header p {
+            color: var(--staff-muted);
+            margin: 0;
+        }
+        .booking-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--staff-surface);
+            border-radius: 20px;
+            overflow: hidden;
+        }
+        .booking-table thead {
+            background: rgba(106, 200, 255, 0.1);
+        }
+        .booking-table th {
+            padding: 16px;
+            text-align: left;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.05em;
+            color: var(--staff-muted);
+            border-bottom: 1px solid var(--staff-border);
+        }
+        .booking-table td {
+            padding: 16px;
+            border-bottom: 1px solid var(--staff-border);
+        }
+        .booking-table tbody tr:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+        .booking-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            transition: opacity 0.2s ease;
+        }
+        .btn-sm:hover {
+            opacity: 0.8;
+        }
+        .btn-primary-sm {
+            background: var(--staff-accent);
+            color: #031126;
+        }
+        .btn-secondary-sm {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--staff-text);
+            border: 1px solid var(--staff-border);
+        }
+        .btn-danger-sm {
+            background: var(--staff-danger);
+            color: white;
+        }
+        .filters-section {
+            background: var(--staff-surface);
+            border: 1px solid var(--staff-border);
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        .filters-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .filters-actions {
+            display: flex;
+            gap: 12px;
+        }
+        .week-calendar-section {
+            background: var(--staff-surface);
+            border: 1px solid var(--staff-border);
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        .week-calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 12px;
+        }
+        .week-day {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--staff-border);
+            border-radius: 16px;
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .week-day:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(106, 200, 255, 0.4);
+            transform: translateY(-2px);
+        }
+        .week-day.active {
+            background: rgba(106, 200, 255, 0.15);
+            border-color: var(--staff-accent);
+            box-shadow: 0 4px 12px rgba(106, 200, 255, 0.2);
+        }
+        .week-day-name {
+            font-size: 0.85rem;
+            color: var(--staff-muted);
+            margin-bottom: 8px;
+            letter-spacing: 0.05em;
+        }
+        .week-day-number {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--staff-text);
+            margin-bottom: 4px;
+        }
+        .week-day-month {
+            font-size: 0.75rem;
+            color: var(--staff-muted);
+        }
+        .week-day.active .week-day-name,
+        .week-day.active .week-day-number {
+            color: var(--staff-accent);
+        }
+        .week-day-today-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #ff6b6b, #ff8e53, #ffa726);
+            color: white;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 12px;
+            margin-top: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            box-shadow: 0 2px 8px rgba(255, 107, 107, 0.4);
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+        @keyframes pulse-glow {
+            0%, 100% {
+                box-shadow: 0 2px 8px rgba(255, 107, 107, 0.4);
+            }
+            50% {
+                box-shadow: 0 2px 16px rgba(255, 107, 107, 0.6);
+            }
+        }
+        .week-day.active {
+            background: linear-gradient(135deg, rgba(255, 107, 107, 0.2), rgba(255, 142, 83, 0.15));
+            border-color: #ff6b6b;
+            border-width: 2px;
+            box-shadow: 0 4px 20px rgba(255, 107, 107, 0.3);
+        }
+        .week-day.active .week-day-name {
+            color: #ff6b6b;
+            font-weight: 700;
+        }
+        .week-day.active .week-day-number {
+            color: #ff8e53;
+            font-weight: 700;
+            font-size: 1.7rem;
+        }
+        .week-day.active .week-day-month {
+            color: #ffa726;
+            font-weight: 600;
+        }
+        .showtime-group {
+            background: var(--staff-surface);
+            border: 1px solid var(--staff-border);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .showtime-group-header {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .showtime-group-poster {
+            width: 80px;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 12px;
+            border: 1px solid var(--staff-border);
+        }
+        .showtime-group-info h4 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 0 0 8px;
+        }
+        .showtime-group-meta {
+            color: var(--staff-muted);
+            font-size: 0.9rem;
+            margin-bottom: 12px;
+        }
+        .showtime-slots {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 16px;
+        }
+        .showtime-slot {
+            background: rgba(106, 200, 255, 0.1);
+            border: 1px solid rgba(106, 200, 255, 0.3);
+            border-radius: 12px;
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .showtime-slot:hover {
+            background: rgba(106, 200, 255, 0.2);
+            border-color: var(--staff-accent);
+            transform: translateY(-2px);
+        }
+        .showtime-slot-time {
+            font-weight: 600;
+            color: var(--staff-accent);
+            margin-bottom: 4px;
+        }
+        .showtime-slot-auditorium {
+            font-size: 0.85rem;
+            color: var(--staff-muted);
+        }
+        .movies-by-status-section {
+            margin-top: 32px;
+        }
+        .status-tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            border-bottom: 2px solid var(--staff-border);
+            padding-bottom: 0;
+        }
+        .status-tab {
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: var(--staff-muted);
+            padding: 16px 24px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            position: relative;
+            top: 2px;
+        }
+        .status-tab:hover {
+            color: var(--staff-text);
+        }
+        .status-tab.active {
+            color: var(--staff-accent);
+            border-bottom-color: var(--staff-accent);
+        }
+        .status-tab[data-status="comingSoon"].active {
+            color: var(--staff-warning);
+            border-bottom-color: var(--staff-warning);
+        }
+        .status-tab[data-status="nowShowing"].active {
+            color: var(--staff-success);
+            border-bottom-color: var(--staff-success);
+        }
+        .status-tab[data-status="stopped"].active {
+            color: var(--staff-muted);
+            border-bottom-color: var(--staff-muted);
+        }
+        .status-content {
+            position: relative;
+        }
+        .status-panel {
+            display: none;
+        }
+        .status-panel.active {
+            display: block;
+        }
+        .status-movies-list {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .status-movie-item {
+            background: var(--staff-surface);
+            border: 1px solid var(--staff-border);
+            border-radius: 20px;
+            padding: 20px;
+            display: flex;
+            gap: 20px;
+            transition: all 0.2s ease;
+        }
+        .status-movie-item:hover {
+            border-color: rgba(106, 200, 255, 0.4);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+            transform: translateY(-2px);
+        }
+        .status-movie-poster {
+            width: 120px;
+            height: 180px;
+            object-fit: cover;
+            border-radius: 12px;
+            border: 1px solid var(--staff-border);
+            flex-shrink: 0;
+        }
+        .status-movie-details {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .status-movie-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 0;
+            color: var(--staff-text);
+        }
+        .status-movie-info {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            color: var(--staff-muted);
+            font-size: 0.95rem;
+        }
+        .status-movie-info-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .status-movie-info-item i {
+            font-size: 1rem;
+        }
+        .status-movie-showtimes {
+            margin-top: 12px;
+        }
+        .status-movie-showtimes-label {
+            font-size: 0.9rem;
+            color: var(--staff-muted);
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+        .status-showtimes-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .status-showtime-item {
+            background: rgba(106, 200, 255, 0.1);
+            border: 1px solid rgba(106, 200, 255, 0.3);
+            border-radius: 12px;
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            color: var(--staff-text);
+            display: block;
+        }
+        .status-showtime-item:hover {
+            background: rgba(106, 200, 255, 0.2);
+            border-color: var(--staff-accent);
+            transform: translateY(-2px);
+        }
+        .status-showtime-time {
+            font-weight: 600;
+            color: var(--staff-accent);
+            margin-bottom: 4px;
+        }
+        .status-showtime-auditorium {
+            font-size: 0.85rem;
+            color: var(--staff-muted);
+        }
+        @media (max-width: 992px) {
+            .staff-sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+            .staff-sidebar.open {
+                transform: translateX(0);
+            }
+            .staff-content {
+                margin-left: 0;
+            }
+            .filters-row {
+                grid-template-columns: 1fr;
+            }
+            .status-tabs {
+                flex-wrap: wrap;
+            }
+            .status-tab {
+                flex: 1;
+                min-width: 120px;
+                padding: 12px 16px;
+                font-size: 0.9rem;
+            }
+            .status-movie-item {
+                flex-direction: column;
+            }
+            .status-movie-poster {
+                width: 100%;
+                height: auto;
+                aspect-ratio: 2/3;
+                max-width: 200px;
+                margin: 0 auto;
+            }
+        }
+    </style>
 </head>
-<body class="staff-theme page-surface">
-<th:block th:replace="~{fragments/header :: main}"></th:block>
+<body class="staff-theme">
+<div class="staff-portal">
+    <aside class="staff-sidebar">
+        <div class="staff-sidebar-header">
+            <h2>Staff Portal</h2>
+            <p>Nhân Viên Bán Vé</p>
+        </div>
+        <ul class="staff-sidebar-menu">
+            <li><a href="#" data-page="dashboard" class="active"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
+            <li><a href="#" data-page="pending"><i class="bi bi-clock-history"></i> Booking đang chờ</a></li>
+            <li><a href="#" data-page="today"><i class="bi bi-calendar-day"></i> Booking hôm nay</a></li>
+            <li><a href="/staff/counter-booking"><i class="bi bi-ticket-detailed"></i> Đặt vé tại quầy</a></li>
+            <li><a href="/staff/qr-scan"><i class="bi bi-qr-code-scan"></i> Quét mã QR</a></li>
+            <li><a href="/logout"><i class="bi bi-box-arrow-right"></i> Thoát</a></li>
+        </ul>
+    </aside>
+    <main class="staff-content">
+        <!-- Dashboard Page -->
+        <div id="dashboardPage" class="staff-page active">
+            <div class="page-header">
+                <h1>Staff Dashboard</h1>
+                <p>Phim theo khung giờ chiếu</p>
+            </div>
+            <div class="filters-section">
+                <div class="filters-row">
+                    <div>
+                        <label class="form-label">Tìm kiếm phim</label>
+                        <input type="text" class="form-control" id="movieSearch" placeholder="Nhập tên phim...">
+                    </div>
+                    <div>
+                        <label class="form-label">Trạng thái phim</label>
+                        <select class="form-select" id="movieStatusFilter">
+                            <option value="all">Tất cả</option>
+                            <option value="ComingSoon">Phim sắp chiếu</option>
+                            <option value="NowShowing">Phim đang chiếu</option>
+                            <option value="Stopped">Phim đã kết thúc</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="filters-actions">
+                    <button class="btn btn-primary" id="applyFilters">Lọc</button>
+                    <button class="btn btn-secondary" id="clearFilters">Xóa lọc</button>
+                </div>
+            </div>
+            
+            <div class="week-calendar-section">
+                <h3 style="margin-bottom: 16px; font-size: 1.2rem;">Lịch chiếu tuần</h3>
+                <div class="week-calendar" id="weekCalendar"></div>
+            </div>
+            
+            <div id="selectedDateMovies" style="display: none;">
+                <div class="page-header" style="margin-top: 32px; margin-bottom: 24px;">
+                    <h2 id="selectedDateTitle"></h2>
+                </div>
+                <div id="selectedDateMoviesList"></div>
+                <div class="staff-empty-hint" id="selectedDateEmpty" style="display: none;">
+                    Không có suất chiếu nào trong ngày này.
+                </div>
+            </div>
 
-<main class="content-shell staff-shell">
-    <div class="staff-container staff-dashboard">
-        <div class="mb-4 text-center">
-            <p class="text-uppercase text-white-50 small mb-2">Xin chào, nhân viên quầy!</p>
-            <h1 class="h3 text-uppercase">Trung tâm vận hành quầy vé</h1>
-            <p class="text-white-50 lead mb-3">
-                Truy cập nhanh tới các nghiệp vụ: đặt vé thủ công giống trải nghiệm khách hàng, hỗ trợ quét mã QR và xử lý giao dịch ngay tại quầy.
-            </p>
-            <div class="datetime-chip d-inline-flex mt-3" id="staffDashboardClock">--</div>
+        <!-- Pending Bookings Page -->
+        <div id="pendingPage" class="staff-page">
+            <div class="page-header">
+                <h1>Booking đang chờ xử lý</h1>
+                <p>Danh sách các booking đang chờ trong hôm nay</p>
+            </div>
+            <div class="filters-section">
+                <div class="filters-row">
+                    <div>
+                        <label class="form-label">Tìm kiếm</label>
+                        <input type="text" class="form-control" id="pendingSearch" placeholder="Mã booking, phim, suất...">
+                    </div>
+                </div>
+                <div class="filters-actions">
+                    <button class="btn btn-primary" id="applyPendingFilters">Lọc</button>
+                    <button class="btn btn-secondary" id="clearPendingFilters">Xóa lọc</button>
+                </div>
+            </div>
+            <div class="table-card">
+                <table class="booking-table">
+                    <thead>
+                    <tr>
+                        <th>Mã booking</th>
+                        <th>Phim / Suất</th>
+                        <th>Ghế</th>
+                        <th>Thanh toán</th>
+                        <th>Tạo lúc</th>
+                        <th>Thao tác</th>
+                    </tr>
+                    </thead>
+                    <tbody id="pendingBookingsTable">
+                    </tbody>
+                </table>
+            </div>
+            <div class="staff-empty-hint" id="pendingEmpty" style="display: none;">
+                Không có booking đang chờ nào.
+            </div>
         </div>
 
-        <section class="actions-grid">
-            <a class="action-card action-card--ticket" th:href="@{/staff/counter-booking}">
-                <div class="card-icon text-success">
-                    <i class="bi bi-ticket-detailed"></i>
+        <!-- Today Bookings Page -->
+        <div id="todayPage" class="staff-page">
+            <div class="page-header">
+                <h1>Booking hôm nay</h1>
+                <p>Tất cả các booking được tạo trong hôm nay</p>
+            </div>
+            <div class="filters-section">
+                <div class="filters-row">
+                    <div>
+                        <label class="form-label">Tìm kiếm</label>
+                        <input type="text" class="form-control" id="todaySearch" placeholder="Mã booking, phim, suất...">
+                    </div>
                 </div>
-                <h2>Đặt vé tại quầy</h2>
-                <p>Chọn phim đang chiếu, chọn suất, giữ ghế và nhập thông tin khách giống giao diện công khai.</p>
-                <span class="card-cta">Bắt đầu <i class="bi bi-arrow-up-right"></i></span>
-            </a>
-            <a class="action-card action-card--scanner" th:href="@{/staff/qr-scan}">
-                <div class="card-icon text-warning">
-                    <i class="bi bi-qr-code-scan"></i>
+                <div class="filters-actions">
+                    <button class="btn btn-primary" id="applyTodayFilters">Lọc</button>
+                    <button class="btn btn-secondary" id="clearTodayFilters">Xóa lọc</button>
                 </div>
-                <h2>Quét mã QR</h2>
-                <p>Quét vé hoặc nhập mã thủ công để kiểm tra và hỗ trợ khách check-in nhanh chóng.</p>
-                <span class="card-cta">Quét ngay <i class="bi bi-lightning-charge"></i></span>
-            </a>
-        </section>
-    </div>
-</main>
-
-<th:block th:replace="~{fragments/footer :: main}"></th:block>
+            </div>
+            <div class="table-card">
+                <table class="booking-table">
+                    <thead>
+                    <tr>
+                        <th>Mã booking</th>
+                        <th>Phim</th>
+                        <th>Suất</th>
+                        <th>Thanh toán</th>
+                        <th>Trạng thái</th>
+                        <th>NV</th>
+                        <th>Thao tác</th>
+                    </tr>
+                    </thead>
+                    <tbody id="todayBookingsTable">
+                    </tbody>
+                </table>
+            </div>
+            <div class="staff-empty-hint" id="todayEmpty" style="display: none;">
+                Không có booking nào trong hôm nay.
+            </div>
+        </div>
+    </main>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
         crossorigin="anonymous"></script>
 <script th:src="@{/auth.js}"></script>
-<script>
-    const staffClockEl = document.getElementById('staffDashboardClock');
-    const renderStaffClock = () => {
-        if (!staffClockEl) return;
-        const now = new Date();
-        staffClockEl.textContent = now.toLocaleDateString('vi-VN', {
-            weekday: 'long',
-            day: '2-digit',
-            month: 'long',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    };
-    renderStaffClock();
-    setInterval(renderStaffClock, 30 * 1000);
-</script>
+<script th:src="@{/staff/staff-dashboard.js}"></script>
 </body>
 </html>

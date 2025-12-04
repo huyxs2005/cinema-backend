@@ -65,6 +65,12 @@ public class Booking {
     @Column(name = "PaymentMethod")
     private String paymentMethod;
 
+    @Column(name = "CustomerEmail")
+    private String customerEmail;
+
+    @Column(name = "CustomerPhone")
+    private String customerPhone;
+
     @Column(name = "TotalAmount", nullable = false)
     private BigDecimal totalAmount;
 

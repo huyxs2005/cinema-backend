@@ -24,7 +24,6 @@ public class StaffBookingSummaryDto {
     private String auditoriumName;
     private LocalDateTime showtimeStart;
     private LocalDateTime showtimeEnd;
-    private String customerName;
     private String customerEmail;
     private String customerPhone;
     private String createdByStaffName;
@@ -34,6 +33,8 @@ public class StaffBookingSummaryDto {
     private BigDecimal totalAmount;
     private BigDecimal finalAmount;
     private OffsetDateTime paidAt;
+    private OffsetDateTime createdAt;
+    private Integer voucherId;
     private List<StaffBookingSeatDto> seats;
     private String ticketPdfBase64;
 }

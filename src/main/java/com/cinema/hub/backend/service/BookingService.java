@@ -4,7 +4,6 @@ import com.cinema.hub.backend.dto.CreateBookingRequest;
 import com.cinema.hub.backend.dto.CreateBookingResponse;
 import com.cinema.hub.backend.dto.SeatHoldRequest;
 import com.cinema.hub.backend.dto.SeatHoldResponse;
-import com.cinema.hub.backend.dto.common.PageResponse;
 import com.cinema.hub.backend.entity.Booking;
 import com.cinema.hub.backend.entity.BookingSeat;
 import com.cinema.hub.backend.entity.UserAccount;
@@ -21,13 +20,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import com.cinema.hub.backend.util.PaymentMethodNormalizer;
 import com.cinema.hub.backend.util.SeatTypeLabelResolver;
 import com.cinema.hub.backend.util.TimeProvider;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 
 @Service
 @RequiredArgsConstructor
@@ -51,7 +50,17 @@ public class BookingService {
                                        int showtimeId,
                                        List<Integer> seatIds,
                                        String paymentMethod) {
-        return createBookingInternal(user, showtimeId, seatIds, paymentMethod);
+        return createBookingInternal(user, showtimeId, seatIds, paymentMethod, null);
+    }
+
+    @Transactional
+    public Booking createStaffBookingEntity(UserAccount staffUser,
+                                            int showtimeId,
+                                            List<Integer> seatIds) {
+        if (staffUser == null) {
+            throw new IllegalArgumentException("Staff user is required");
+        }
+        return createBookingInternal(staffUser, showtimeId, seatIds, null, staffUser);
     }
 
     @Transactional
@@ -65,20 +74,24 @@ public class BookingService {
                 .orElseThrow(() -> new EntityNotFoundException("Booking not found after creation"));
     }
 
-    private Booking createBookingInternal(UserAccount user,
+    private Booking createBookingInternal(UserAccount holdOwner,
                                           int showtimeId,
                                           List<Integer> seatIds,
-                                          String paymentMethod) {
+                                          String paymentMethod,
+                                          UserAccount createdByStaff) {
         SeatHoldRequest holdRequest = new SeatHoldRequest();
         holdRequest.setShowtimeId(showtimeId);
         holdRequest.setSeatIds(seatIds);
-        holdRequest.setUserId(user.getId());
+        holdRequest.setUserId(holdOwner.getId());
         SeatHoldResponse holdResponse = seatReservationService.holdSeats(holdRequest);
 
         CreateBookingRequest bookingRequest = new CreateBookingRequest();
         bookingRequest.setHoldToken(holdResponse.getHoldToken());
-        bookingRequest.setUserId(user.getId());
+        bookingRequest.setUserId(holdOwner.getId());
         bookingRequest.setPaymentMethod(paymentMethod);
+        if (createdByStaff != null) {
+            bookingRequest.setCreatedByStaffId(createdByStaff.getId());
+        }
 
         CreateBookingResponse bookingResponse = seatReservationService.createBooking(bookingRequest);
         Booking booking = bookingRepository.findById(bookingResponse.getBookingId())
@@ -104,14 +117,14 @@ public class BookingService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<BookingHistoryView> getBookingHistory(UserAccount user, int page, int size) {
-        Page<BookingHistoryView> historyPage = bookingRepository
-                .findByUserAndBookingStatusOrderByCreatedAtDesc(
+    public List<BookingHistoryView> getBookingHistory(UserAccount user) {
+        return bookingRepository.findTop10ByUserAndBookingStatusOrderByCreatedAtDesc(
                         user,
-                        BookingStatus.Confirmed,
-                        PageRequest.of(page, size))
-                .map(this::mapBookingToHistoryView);
-        return PageResponse.from(historyPage);
+                        BookingStatus.Confirmed)
+                .stream()
+                .map(this::mapBookingToHistoryView)
+                .filter(Objects::nonNull)
+                .toList();
     }
 
 
@@ -128,7 +141,7 @@ public class BookingService {
                 .theaterName(booking.getShowtime().getAuditorium().getName())
                 .auditoriumName(booking.getShowtime().getAuditorium().getName())
                 .format(resolveBookingFormat(booking))
-                .email(booking.getUser() != null ? booking.getUser().getEmail() : "")
+                .email(resolveCustomerEmail(booking))
                 .seatLabels(seatLabels)
                 .seatGroups(seatGroups)
                 .showtimeText(showtimeText)
@@ -141,9 +154,10 @@ public class BookingService {
         if (booking.getPaymentStatus() == PaymentStatus.Paid) {
             return booking;
         }
+        String normalized = PaymentMethodNormalizer.normalize(paymentMethod);
         booking.setPaymentStatus(PaymentStatus.Paid);
         booking.setBookingStatus(BookingStatus.Confirmed);
-        booking.setPaymentMethod(paymentMethod);
+        booking.setPaymentMethod(normalized);
         booking.setPaidAt(TimeProvider.now());
         return bookingRepository.save(booking);
     }
@@ -167,6 +181,9 @@ public class BookingService {
 
     private BookingHistoryView mapBookingToHistoryView(Booking booking) {
         List<String> seatLabels = loadSeatLabels(booking);
+        if (seatLabels.isEmpty()) {
+            return null;
+        }
         BigDecimal totalAmount = booking.getFinalAmount() != null && booking.getFinalAmount().signum() > 0
                 ? booking.getFinalAmount()
                 : booking.getTotalAmount();
@@ -214,5 +231,12 @@ public class BookingService {
         return grouped.entrySet().stream()
                 .map(entry -> String.join(", ", entry.getValue()) + " - " + entry.getKey())
                 .collect(Collectors.toList());
+    }
+
+    private String resolveCustomerEmail(Booking booking) {
+        if (booking.getCustomerEmail() != null && !booking.getCustomerEmail().isBlank()) {
+            return booking.getCustomerEmail();
+        }
+        return booking.getUser() != null ? booking.getUser().getEmail() : "";
     }
 }

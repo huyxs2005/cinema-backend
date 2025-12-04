@@ -628,17 +628,13 @@ function initializeProfilePage() {
     loadTicketHistory(user);
 
     document.getElementById("ticketHistoryPrev")?.addEventListener("click", () => {
-        if (ticketHistoryState.page > 0 && !ticketHistoryState.loading) {
-            loadTicketHistory(null, ticketHistoryState.page - 1);
+        if (!ticketHistoryState.loading) {
+            loadTicketHistory();
         }
     });
     document.getElementById("ticketHistoryNext")?.addEventListener("click", () => {
-        if (
-            ticketHistoryState.totalPages > 0 &&
-            ticketHistoryState.page + 1 < ticketHistoryState.totalPages &&
-            !ticketHistoryState.loading
-        ) {
-            loadTicketHistory(null, ticketHistoryState.page + 1);
+        if (!ticketHistoryState.loading) {
+            loadTicketHistory();
         }
     });
 
@@ -791,54 +787,57 @@ function updateTicketHistoryPagination(pageData) {
     }
 }
 
-async function loadTicketHistory(user, targetPage = ticketHistoryState.page) {
-    const tbody = document.getElementById("ticketHistoryBody");
-    if (!tbody) {
-        return;
-    }
-    if (ticketHistoryState.loading) {
-        return;
-    }
-    if (user?.userId) {
-        ticketHistoryState.userId = user.userId;
-    }
-    const userId = ticketHistoryState.userId;
-    if (!userId) {
-        return;
-    }
-    const safePage = Math.max(0, targetPage);
-    ticketHistoryState.loading = true;
-    try {
-        const params = new URLSearchParams({
-            page: safePage.toString(),
-            size: ticketHistoryState.size.toString()
-        });
-        const historyPage = await apiRequest(`${ProfileAPI.history(userId)}?${params.toString()}`);
-        const formatted = (historyPage.content ?? []).map((item) => ({
-            bookingCode: item.bookingCode,
-            date: formatHistoryDate(item.purchasedAt || item.showtime),
-            movie: [item.movieTitle, item.theaterName].filter(Boolean).join(" • "),
-            showtime: formatShowtime(item.showtime),
-            tickets: formatTicketCount(item.ticketCount),
-            amount: formatCurrency(item.total)
-        }));
-        renderTicketHistory(formatted);
-        updateTicketHistoryPagination(historyPage);
-    } catch (error) {
-        console.error("Load ticket history failed", error);
-        renderTicketHistory([]);
-        updateTicketHistoryPagination({
-            content: [],
-            page: 0,
-            size: ticketHistoryState.size,
-            totalElements: 0,
-            totalPages: 0
-        });
-        showProfileToast(error.message || "Không thể tải lịch sử mua vé", "error");
-    } finally {
-        ticketHistoryState.loading = false;
-    }
-}
+async function loadTicketHistory(user) {
+    const tbody = document.getElementById("ticketHistoryBody");
+    if (!tbody) {
+        return;
+    }
+    if (ticketHistoryState.loading) {
+        return;
+    }
+    if (user?.userId) {
+        ticketHistoryState.userId = user.userId;
+    }
+    const userId = ticketHistoryState.userId;
+    if (!userId) {
+        return;
+    }
+    ticketHistoryState.loading = true;
+    try {
+        const historyEntries = await apiRequest(ProfileAPI.history(userId));
+        const normalizedEntries = Array.isArray(historyEntries) ? historyEntries : [];
+        const formatted = normalizedEntries.map((item) => ({
+            bookingCode: item.bookingCode,
+            date: formatHistoryDate(item.purchasedAt || item.showtime),
+            movie: [item.movieTitle, item.theaterName].filter(Boolean).join(" • "),
+            showtime: formatShowtime(item.showtime),
+            tickets: formatTicketCount(item.ticketCount),
+            amount: formatCurrency(item.total)
+        }));
+        renderTicketHistory(formatted);
+        updateTicketHistoryPagination({
+            content: normalizedEntries,
+            page: 0,
+            size: normalizedEntries.length,
+            totalElements: normalizedEntries.length,
+            totalPages: normalizedEntries.length > 0 ? 1 : 0
+        });
+    } catch (error) {
+        console.error("Load ticket history failed", error);
+        renderTicketHistory([]);
+        updateTicketHistoryPagination({
+            content: [],
+            page: 0,
+            size: ticketHistoryState.size,
+            totalElements: 0,
+            totalPages: 0
+        });
+        showProfileToast(error.message || "Không thể tải lịch sử mua vé", "error");
+    } finally {
+        ticketHistoryState.loading = false;
+    }
+}
+
 
 function formatHistoryDate(value) {
     if (!value) {

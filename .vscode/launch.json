@@ -10,9 +10,10 @@
       "args": "",
       "envFile": "${workspaceFolder}/.env",
       "env": {
-        "MAIL_USERNAME": "kironinja2015@gmail.com",
-        "MAIL_PASSWORD": "cnwvgitfgpfuozll",
-        "MAIL_FROM": "kironinja2015@gmail.com"
+// in between" " place your email in here and in mail password, place your email encoding password, google how to do it 
+        "MAIL_USERNAME": "",
+        "MAIL_PASSWORD": "",
+        "MAIL_FROM": ""
       }
     }
   ]

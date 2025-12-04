@@ -27,6 +27,12 @@ public class MovieService {
     private final MovieRepository movieRepository;
 
     public List<MovieDetailDto> getNowShowingMovies() {
+        List<Movie> statusBased = movieRepository.findAllByStatusWithGenres(STATUS_NOW_SHOWING);
+        if (!statusBased.isEmpty()) {
+            return statusBased.stream()
+                    .map(this::mapToSummaryDto)
+                    .toList();
+        }
         LocalDate today = LocalDate.now(TimeProvider.VN_ZONE_ID);
         return movieRepository.findAllWithGenres()
                 .stream()
@@ -36,6 +42,12 @@ public class MovieService {
     }
 
     public List<MovieDetailDto> getComingSoonMovies() {
+        List<Movie> statusBased = movieRepository.findAllByStatusWithGenres(STATUS_COMING_SOON);
+        if (!statusBased.isEmpty()) {
+            return statusBased.stream()
+                    .map(this::mapToSummaryDto)
+                    .toList();
+        }
         LocalDate today = LocalDate.now(TimeProvider.VN_ZONE_ID);
         return movieRepository.findAllWithGenres()
                 .stream()

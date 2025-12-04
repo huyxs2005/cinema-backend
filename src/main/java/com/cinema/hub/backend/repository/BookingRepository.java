@@ -53,6 +53,9 @@ public interface BookingRepository extends JpaRepository<Booking, Integer> {
                                                                  BookingStatus bookingStatus,
                                                                  Pageable pageable);
 
+    List<Booking> findTop10ByUserAndBookingStatusOrderByCreatedAtDesc(UserAccount user,
+                                                                      BookingStatus bookingStatus);
+
     @Query("""
         select b from Booking b
         join fetch b.showtime st
@@ -61,6 +64,42 @@ public interface BookingRepository extends JpaRepository<Booking, Integer> {
         where b.id = :bookingId
     """)
     Optional<Booking> findDetailedById(@Param("bookingId") Integer bookingId);
+
+    @Query("""
+        select b from Booking b
+        join fetch b.showtime st
+        join fetch st.movie m
+        join fetch st.auditorium a
+        where b.bookingStatus = :status
+        order by b.createdAt asc
+    """)
+    List<Booking> findByStatusWithShowtime(@Param("status") BookingStatus status);
+
+    @Query("""
+        select b from Booking b
+        join fetch b.showtime st
+        join fetch st.movie m
+        join fetch st.auditorium a
+        left join fetch b.createdByStaff
+        where b.createdAt >= :startOfDay and b.createdAt < :endOfDay
+        order by b.createdAt desc
+    """)
+    List<Booking> findByDateWithShowtime(@Param("startOfDay") OffsetDateTime startOfDay,
+                                         @Param("endOfDay") OffsetDateTime endOfDay);
+
+    @Query("""
+        select b from Booking b
+        join fetch b.showtime st
+        join fetch st.movie m
+        join fetch st.auditorium a
+        left join fetch b.createdByStaff
+        where b.createdAt >= :startOfDay and b.createdAt < :endOfDay
+        and b.bookingStatus IN :statuses
+        order by b.createdAt desc
+    """)
+    List<Booking> findByDateAndStatusesWithShowtime(@Param("startOfDay") OffsetDateTime startOfDay,
+                                                    @Param("endOfDay") OffsetDateTime endOfDay,
+                                                    @Param("statuses") List<BookingStatus> statuses);
 
     List<Booking> findByCreatedAtBetween(OffsetDateTime start, OffsetDateTime end);
 

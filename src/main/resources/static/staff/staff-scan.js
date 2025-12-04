@@ -319,6 +319,9 @@
             if (value.toUpperCase().startsWith('TICKET:')) {
                 value = value.slice(7);
             }
+            if (value.toUpperCase().startsWith('BOOKING:')) {
+                value = value.slice(8);
+            }
             return value.trim();
         };
 
@@ -340,6 +343,9 @@
             const bookingCode = parseBookingCode(decodedText);
             if (!bookingCode) {
                 return;
+            }
+            if (dom.manualInput) {
+                dom.manualInput.value = bookingCode;
             }
             state.decodeLock = true;
             await stopScanner();

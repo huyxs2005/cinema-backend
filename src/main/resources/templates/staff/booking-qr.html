@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thanh toán VietQR - Cinema HUB Staff</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+          integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/styles.css}">
+    <link rel="stylesheet" th:href="@{/staff/staff-ui.css}">
+    <style>
+        .booking-qr-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        .card {
+            background: var(--staff-surface);
+            border: 1px solid var(--staff-border);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .card-header {
+            padding: 2rem;
+            border-bottom: 1px solid var(--staff-border);
+        }
+        .card-header h2 {
+            margin: 0 0 0.5rem;
+            font-size: 1.75rem;
+        }
+        .card-header p {
+            margin: 0.5rem 0;
+            color: var(--staff-muted);
+        }
+        .qr-body {
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            align-items: center;
+        }
+        .qr-image {
+            text-align: center;
+            position: relative;
+        }
+        .qr-image img {
+            max-width: 100%;
+            height: auto;
+            border: 2px solid var(--staff-border);
+            border-radius: 12px;
+            background: white;
+            padding: 1rem;
+        }
+        #qrCountdown {
+            margin-top: 1rem;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--staff-accent);
+        }
+        .qr-info {
+            padding: 1rem 0;
+        }
+        .qr-info p {
+            margin: 1rem 0;
+        }
+        .transfer-content {
+            background: var(--staff-bg);
+            border: 1px solid var(--staff-border);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: monospace;
+            font-size: 0.9rem;
+            margin: 0.5rem 0;
+            word-break: break-all;
+        }
+        .qr-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+        .qr-actions form {
+            margin: 0;
+        }
+        .btn-primary, .btn-secondary, .btn-danger {
+            width: 100%;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+        .btn-primary {
+            background: var(--staff-accent);
+            color: var(--staff-bg);
+        }
+        .btn-secondary {
+            background: var(--staff-surface);
+            color: var(--staff-text);
+            border: 1px solid var(--staff-border);
+        }
+        .btn-danger {
+            background: var(--staff-danger);
+            color: white;
+        }
+        .btn-primary:hover, .btn-secondary:hover, .btn-danger:hover {
+            opacity: 0.9;
+        }
+        @media (max-width: 768px) {
+            .qr-body {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body class="staff-theme page-surface">
+<th:block th:replace="~{fragments/header :: main}"></th:block>
+
+<main class="content-shell staff-shell">
+    <div class="booking-qr-container">
+        <div class="mb-4">
+            <a th:href="@{'/staff/bookings/' + ${qr.bookingCode}}" class="btn btn-outline-light">
+                <i class="bi bi-arrow-left"></i> Về chi tiết đơn
+            </a>
+        </div>
+
+        <div th:if="${error != null}" class="alert alert-danger" role="alert">
+            <i class="bi bi-exclamation-triangle"></i> <span th:text="${error}">Lỗi</span>
+        </div>
+
+        <div th:if="${qr != null}" class="card">
+            <div class="card-header">
+                <h2>Thanh toán VietQR</h2>
+                <p>Mã đơn: <strong th:text="${qr.bookingCode}">CODE</strong></p>
+            </div>
+            <div class="card-body qr-body"
+                 th:data-booking-code="${qr.bookingCode}"
+                 th:data-status-api="@{'/api/staff/bookings/' + ${qr.bookingId} + '/status'}"
+                 th:data-expiry="${qr.expiresAt}">
+                <div class="qr-image">
+                    <img th:src="'data:image/png;base64,' + ${qr.qrImageUrl}" alt="VietQR" id="qrImage">
+                    <div id="qrCountdown">--:--</div>
+                </div>
+                <div class="qr-info">
+                    <p>Số tiền: <strong th:text="${#numbers.formatDecimal(qr.amount, 0, 'COMMA', 0, 'POINT') + ' ₫'}">0</strong></p>
+                    <p>Nội dung chuyển khoản:</p>
+                    <div class="transfer-content" th:text="${qr.transferContent}">CB_CODE</div>
+                    <div class="qr-actions">
+                        <form th:action="@{'/staff/bookings/' + ${qr.bookingCode} + '/mark-paid'}" method="post">
+                            <button type="submit" class="btn-primary">Đã nhận tiền</button>
+                        </form>
+                        <form th:action="@{'/staff/bookings/' + ${qr.bookingCode} + '/cancel'}" method="post">
+                            <button type="submit" class="btn-danger">Hủy đơn</button>
+                        </form>
+                        <a th:href="@{'/staff/bookings/' + ${qr.bookingCode}}" class="btn-secondary">Xem chi tiết</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<div class="staff-toast" id="bookingToast" role="status"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script th:inline="javascript">
+    document.addEventListener('DOMContentLoaded', () => {
+        const qrBody = document.querySelector('.qr-body');
+        if (!qrBody) return;
+        
+        const bookingCode = qrBody.dataset.bookingCode;
+        const statusApi = qrBody.dataset.statusApi;
+        const expiryStr = qrBody.dataset.expiry;
+        const countdownEl = document.getElementById('qrCountdown');
+        
+        // Countdown timer
+        if (expiryStr && countdownEl) {
+            const expiresAt = new Date(expiryStr);
+            const updateCountdown = () => {
+                const now = new Date();
+                const diff = expiresAt - now;
+                if (diff <= 0) {
+                    countdownEl.textContent = 'Đã hết hạn';
+                    return;
+                }
+                const minutes = Math.floor(diff / 60000);
+                const seconds = Math.floor((diff % 60000) / 1000);
+                countdownEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            };
+            updateCountdown();
+            setInterval(updateCountdown, 1000);
+        }
+        
+        // Auto-check payment status if API available
+        if (statusApi) {
+            const checkStatus = async () => {
+                try {
+                    const response = await fetch(statusApi, { credentials: 'include' });
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.paymentStatus === 'Paid') {
+                            window.location.reload();
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error checking payment status:', error);
+                }
+            };
+            // Check every 5 seconds
+            setInterval(checkStatus, 5000);
+        }
+    });
+</script>
+</body>
+</html>
+

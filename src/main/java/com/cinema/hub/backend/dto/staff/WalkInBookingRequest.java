@@ -1,7 +1,6 @@
 package com.cinema.hub.backend.dto.staff;
 
 import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
@@ -19,10 +18,6 @@ public class WalkInBookingRequest {
     @NotEmpty
     private List<Integer> seatIds;
 
-    @NotBlank
-    private String fullName;
-
-    @NotBlank
     private String phone;
 
     @Email
@@ -35,6 +30,5 @@ public class WalkInBookingRequest {
     @NotNull
     private BigDecimal finalPrice;
 
-    @NotBlank
     private String paymentMethod;
 }

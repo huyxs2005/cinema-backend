@@ -1,6 +1,6 @@
 package com.cinema.hub.backend.dto.staff;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -14,8 +14,8 @@ public class StaffShowtimeFilterDto {
     private Boolean onlyActive;
 
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-    private LocalDateTime start;
+    private OffsetDateTime start;
 
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-    private LocalDateTime end;
+    private OffsetDateTime end;
 }

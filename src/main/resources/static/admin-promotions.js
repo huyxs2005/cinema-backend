@@ -13,7 +13,7 @@ const promotionDataBus = window.AdminDataBus || {
     subscribe: () => () => {}
 };
 
-const PROMOTION_PAGE_SIZE = 8;
+const PROMOTION_PAGE_SIZE = 10;
 
 const promotionState = {
     page: 0,

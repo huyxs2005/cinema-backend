@@ -79,11 +79,22 @@ public class StaffShowtimeService {
     }
 
     private Specification<Showtime> buildSpecification(StaffShowtimeFilterDto filter) {
-        LocalDateTime defaultStart = TimeProvider.now().toLocalDateTime().minusHours(6);
-        LocalDateTime start = filter != null && filter.getStart() != null ? filter.getStart() : defaultStart;
-        LocalDateTime end = filter != null && filter.getEnd() != null ? filter.getEnd() : start.plusDays(1);
+        LocalDateTime defaultStart = TimeProvider.now().minusHours(6).toLocalDateTime();
+        LocalDateTime start = defaultStart;
+        LocalDateTime end = defaultStart.plusDays(1);
+        if (filter != null) {
+            if (filter.getStart() != null) {
+                start = normalizeToLocal(filter.getStart());
+                end = start.plusDays(1);
+            }
+            if (filter.getEnd() != null) {
+                end = normalizeToLocal(filter.getEnd());
+            }
+        }
+        final LocalDateTime rangeStart = start;
+        final LocalDateTime rangeEnd = end;
         Specification<Showtime> spec = Specification.where((root, query, cb) ->
-                cb.between(root.get("startTime"), start, end));
+                cb.between(root.get("startTime"), rangeStart, rangeEnd));
         if (filter != null) {
             if (filter.getMovieId() != null) {
                 spec = spec.and((root, query, cb) ->
@@ -100,6 +111,10 @@ public class StaffShowtimeService {
             spec = spec.and((root, query, cb) -> cb.isTrue(root.get("active")));
         }
         return spec;
+    }
+
+    private LocalDateTime normalizeToLocal(OffsetDateTime timestamp) {
+        return timestamp.atZoneSameInstant(TimeProvider.VN_ZONE_ID).toLocalDateTime();
     }
 
     private Map<Integer, ShowtimeOccupancyView> loadOccupancy(List<Showtime> showtimes) {

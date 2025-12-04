@@ -23,52 +23,55 @@
         <section class="staff-hero">
             <div>
                 <p class="staff-eyebrow">Đặt vé tại quầy</p>
-                <h1>Tạo vé thủ công giống trải nghiệm khách hàng</h1>
-                <p>Chọn phim đang chiếu, chọn suất, khóa ghế, điền thông tin khách và xuất vé hoặc thu tiền ngay tại quầy.</p>
+                <h1>Xuất vé trực tiếp cho khách</h1>
+                <p>Chọn suất đang mở, giữ ghế, nhập thông tin và xác nhận thanh toán ngay tại quầy.</p>
             </div>
         </section>
 
         <div class="booking-layout">
             <div>
-                <article class="step-card">
+                <article class="detail-card" id="selectedShowtimeCard" style="display: none;">
+                    <div style="display: flex; gap: 16px; align-items: start;">
+                        <img id="selectedShowtimePoster" src="" alt="Poster phim" style="width: 80px; height: 120px; object-fit: cover; border-radius: 12px; border: 1px solid var(--staff-border);">
+                        <div style="flex: 1;">
+                            <h3 style="margin: 0 0 8px; font-size: 1.2rem;" id="selectedShowtimeMovie">---</h3>
+                            <p style="margin: 0 0 4px; color: var(--staff-muted); font-size: 0.9rem;">
+                                <i class="bi bi-clock"></i> <span id="selectedShowtimeTime">---</span>
+                            </p>
+                            <p style="margin: 0 0 4px; color: var(--staff-muted); font-size: 0.9rem;">
+                                <i class="bi bi-door-open"></i> <span id="selectedShowtimeAuditorium">---</span>
+                            </p>
+                            <p style="margin: 0; color: var(--staff-muted); font-size: 0.9rem;">
+                                <i class="bi bi-people"></i> Lấp đầy: <span id="selectedShowtimeOccupancy">---</span>
+                            </p>
+                        </div>
+                    </div>
+                </article>
+
+                <article class="step-card" id="movieSelectionCard">
                     <div class="step-head">
                         <div class="step-number">1</div>
                         <div>
-                            <h2>Chọn phim & suất chiếu</h2>
-                            <p>Hiển thị danh sách phim đang chiếu và các suất phù hợp để nhân viên thao tác giống trang khách hàng.</p>
+                            <h2>Chọn phim và suất chiếu</h2>
+                            <p>Hiển thị danh sách phim đang chiếu và các suất chiếu nhân viên có thể thao tác.</p>
                         </div>
                     </div>
                     <div class="movie-pill-grid" id="staffMovieList" role="listbox"></div>
-                    <p class="text-muted mt-2" id="staffMovieEmpty">Đang tải danh sách phim...</p>
+                    <div class="staff-empty-hint" id="staffMovieEmpty">Đang tải danh sách phim...</div>
                     <div class="showtime-chip-grid mt-4" id="staffShowtimeList"></div>
-                    <p class="text-muted mt-2" id="staffShowtimeEmpty">Chọn phim để xem các suất đang mở.</p>
-                </article>
-
-                <article class="detail-card" id="bookingShowtimeCard" hidden>
-                    <h2>Thông tin suất chiếu</h2>
-                    <p class="muted">Kiểm tra phim, phòng và mức độ lấp đầy trước khi giữ ghế.</p>
-                    <dl class="row mb-0">
-                        <dt class="col-sm-4">Phim</dt>
-                        <dd class="col-sm-8" id="detailMovie">---</dd>
-                        <dt class="col-sm-4">Phòng</dt>
-                        <dd class="col-sm-8" id="detailAuditorium">---</dd>
-                        <dt class="col-sm-4">Thời gian</dt>
-                        <dd class="col-sm-8" id="detailTime">---</dd>
-                        <dt class="col-sm-4">Lấp đầy</dt>
-                        <dd class="col-sm-8" id="detailOccupancy">---</dd>
-                    </dl>
+                    <div class="staff-empty-hint" id="staffShowtimeEmpty">Đang tải danh sách suất chiếu...</div>
                 </article>
 
                 <article class="step-card seat-selection-wrapper">
                     <div class="step-head">
-                        <div class="step-number">2</div>
+                        <div class="step-number" id="seatStepNumber">2</div>
                         <div>
                             <h2>Chọn ghế</h2>
-                            <p>Giữ ghế trực tiếp trên sơ đồ như giao diện khách hàng.</p>
+                            <p>Chọn ghế trực tiếp trên sơ đồ sau khi đã chọn suất chiếu.</p>
                         </div>
                     </div>
                     <div id="seatSelectionWrapper">
-                        <div class="text-center py-4" id="seatSelectionPlaceholder">
+                        <div class="staff-empty-hint" id="seatSelectionPlaceholder">
                             Vui lòng chọn suất chiếu để hiển thị sơ đồ ghế.
                         </div>
                         <div id="staffSeatFragment"></div>
@@ -77,86 +80,98 @@
             </div>
 
             <div>
-                <article class="step-card">
-                    <div class="step-head">
-                        <div class="step-number">3</div>
-                        <div>
-                            <h2>Thông tin khách hàng</h2>
-                            <p>Nhập thông tin liên hệ và phương thức thanh toán.</p>
-                        </div>
-                    </div>
-                    <form id="staffBookingForm" class="row g-3">
-                        <div class="col-12">
-                            <label class="form-label" for="customerFullName">Họ tên khách<span class="text-danger">*</span></label>
-                            <input class="form-control" id="customerFullName" name="customerFullName" placeholder="Nguyễn Văn A" required type="text">
-                            <p class="input-error" data-error-for="customerFullName"></p>
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label" for="customerPhone">Số điện thoại<span class="text-danger">*</span></label>
-                            <input class="form-control" id="customerPhone" name="customerPhone" placeholder="0901 234 567" required type="tel">
-                            <p class="input-error" data-error-for="customerPhone"></p>
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label" for="customerEmail">Email</label>
-                            <input class="form-control" id="customerEmail" name="customerEmail" placeholder="khach@cinema.vn" type="email">
-                            <p class="input-error" data-error-for="customerEmail"></p>
-                        </div>
-
-                        <div class="col-12">
-                            <label class="form-label" for="discountSelect">Khuyến mãi / Giảm giá</label>
-                            <select class="form-select" id="discountSelect">
-                                <option value="0" data-percent="0">Không giảm giá – 0%</option>
-                                <option value="0.2" data-percent="0.2">Trẻ em, người cao tuổi, người có công – Giảm 20%</option>
-                                <option value="0.5" data-percent="0.5">Người khuyết tật – Giảm 50%</option>
-                                <option value="1" data-percent="1">Trẻ em dưới 0.7m đi cùng người lớn – Giảm 100%</option>
-                            </select>
-                        </div>
-
-                        <div class="col-12">
-                            <label class="form-label">Phương thức thanh toán</label>
-                            <div class="payment-methods">
-                                <label class="payment-option">
-                                    <input type="radio" name="paymentMethod" value="CASH" checked>
-                                    <span>Tiền mặt</span>
-                                </label>
-                                <label class="payment-option">
-                                    <input type="radio" name="paymentMethod" value="TRANSFER">
-                                    <span>Chuyển khoản</span>
-                                </label>
-                            </div>
-                            <div class="bank-transfer-panel" id="bankTransferPanel" hidden>
-                                <div class="bank-transfer-info">
-                                    <p class="bank-name">MB Bank - DAO NAM HAI</p>
-                                    <p class="bank-number">Số tài khoản: 0931630902</p>
-                                    <p class="bank-note">QR sẽ tự động điều chỉnh đúng số tiền sau khi khóa ghế.</p>
-                                    <img th:src="@{/img/bank-transfer-qr.svg}" src="/img/bank-transfer-qr.svg" alt="MB Bank QR" loading="lazy">
-                                </div>
-                                <p class="helper-text">Xác nhận khách đã chuyển khoản trước khi nhấn "Xác nhận tạo vé".</p>
-                            </div>
-                        </div>
-                    </form>
-                </article>
-
                 <article class="step-card booking-summary-card">
                     <h2>Tạm tính vé</h2>
-                    <p class="text-muted mb-2">Số ghế đã chọn: <strong id="summarySeatCount">0</strong></p>
+                    <p class="mb-2">Số ghế đã chọn: <strong id="summarySeatCount">0</strong></p>
                     <ul class="list-unstyled" id="summarySeatList"></ul>
                     <div class="summary-total">
                         <span>Tổng tiền</span>
-                        <strong id="summaryTotal">0 đ</strong>
-                    </div>
-                    <div class="booking-result" id="bookingResult" hidden>
-                        <p>Mã đặt vé: <strong id="bookingCodeLabel">---</strong></p>
-                        <p class="text-muted mb-0" id="bookingStatusLabel">---</p>
+                        <strong id="summaryTotal">0 ₫</strong>
                     </div>
                     <p class="text-warning" id="bookingError" hidden></p>
                     <div class="btn-group mt-3">
                         <button class="btn btn-primary" id="createBookingBtn" type="button">Xác nhận tạo vé</button>
-                        <button class="btn btn-outline-light" id="printTicketBtn" type="button" disabled>In vé (PDF)</button>
                     </div>
                 </article>
             </div>
         </div>
+
+        <article class="step-card customer-info-card">
+            <div class="step-head">
+                <div class="step-number" id="customerStepNumber">3</div>
+                <div>
+                    <h2>Thông tin khách hàng</h2>
+                    <p>Nhập thông tin liên hệ và phương thức thanh toán tùy chọn.</p>
+                </div>
+            </div>
+            <form id="staffBookingForm" class="row g-3">
+                <div class="col-12">
+                    <label class="form-label" for="customerPhone">Số điện thoại <span class="text-muted" style="font-weight: normal;">(tùy chọn)</span></label>
+                    <input class="form-control" id="customerPhone" name="customerPhone" placeholder="0901 234 567" type="tel">
+                    <p class="input-error" data-error-for="customerPhone"></p>
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="customerEmail">Email <span class="text-muted" style="font-weight: normal;">(tùy chọn)</span></label>
+                    <input class="form-control" id="customerEmail" name="customerEmail" placeholder="khach@cinema.vn" type="email">
+                    <p class="input-error" data-error-for="customerEmail"></p>
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="discountSelect">Khuyến mãi / Giảm giá <span class="text-muted" style="font-weight: normal;">(tùy chọn)</span></label>
+                    <select class="form-select" id="discountSelect">
+                        <option value="0" data-percent="0">Không giảm giá - 0%</option>
+                        <option value="0.2" data-percent="0.2">Trẻ em, người cao tuổi, người có công - Giảm 20%</option>
+                        <option value="0.5" data-percent="0.5">Người khuyết tật - Giảm 50%</option>
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Phương thức thanh toán</label>
+                    <div class="payment-methods">
+                        <label class="payment-option">
+                            <input type="radio" name="paymentMethod" value="Cash" checked>
+                            <span>Tiền mặt</span>
+                        </label>
+                        <label class="payment-option">
+                            <input type="radio" name="paymentMethod" value="Transfer">
+                            <span>Chuyển khoản</span>
+                        </label>
+                    </div>
+                    <div class="bank-transfer-panel" id="bankTransferPanel" hidden>
+                        <div class="bank-transfer-info" id="transferPlaceholder">
+                            <p class="bank-name">Thanh toán VietQR qua PayOS</p>
+                            <p class="bank-note">
+                                Sau khi nhấn "Xác nhận tạo vé" hệ thống sẽ giữ ghế và tạo VietQR hiển thị ngay tại đây.
+                            </p>
+                            <ul>
+                                <li>Nhập email khách hàng để gửi vé khi PayOS xác nhận.</li>
+                                <li>Tạo VietQR ngay tại mục này sau khi đơn đã tạo.</li>
+                                <li>Xác nhận khách chuyển khoản đúng nội dung hiển thị.</li>
+                            </ul>
+                        </div>
+                        <div class="payos-qr" id="staffPayosPanel" hidden>
+                            <img id="staffPayosQrImage" alt="Mã VietQR" src="">
+                            <div class="payos-qr__meta">
+                                <p>Mã đơn: <strong id="staffPayosBookingCode">---</strong></p>
+                                <p>Mã PayOS: <strong id="staffPayosOrderCode">---</strong></p>
+                                <p>Ngân hàng: <span id="staffPayosBankInfo">MB Bank - 0931630902 - DAO NAM HAI</span></p>
+                                <p>Số tiền: <strong id="staffPayosAmount">0 ₫</strong></p>
+                                <p>Nội dung: <strong id="staffPayosDescription">---</strong></p>
+                                <p id="staffPayosCountdown">QR còn hiệu lực: --:--</p>
+                            </div>
+                        </div>
+                        <p class="helper-text" id="transferHelperText">
+                            Email khách hàng bắt buộc với giao dịch chuyển khoản. PayOS sẽ tạo vé điện tử ngay sau khi nhận tiền.
+                        </p>
+                        <p class="warning-text" id="transferError" hidden></p>
+                        <div class="transfer-actions">
+                            <button class="btn btn-outline-light" type="button" id="transferGenerateBtn">Tạo mã VietQR</button>
+                            <a class="btn btn-secondary" href="#" id="transferBookingLink" target="_blank" rel="noopener" hidden>Xem chi tiết đơn</a>
+                            <a class="btn btn-text" href="#" id="transferQrPageLink" target="_blank" rel="noopener" hidden>Mở trang VietQR</a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </article>
+
         <div class="staff-toast" id="staffBookingToast" role="status"></div>
     </section>
 </main>

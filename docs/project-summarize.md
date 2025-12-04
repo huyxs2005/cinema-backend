@@ -1,98 +1,111 @@
-# Cinema HUB – Tóm tắt dự án
+# Cinema HUB – Tài liệu tóm tắt dự án
 
-## 1. Tổng quan
-Cinema HUB là hệ thống quản lý rạp chiếu phim (Spring Boot + Thymeleaf + JS) hỗ trợ đầy đủ các nghiệp vụ nội dung: phim, suất chiếu, banner trang chủ và phòng chiếu. Frontend thuần HTML/CSS/JS, no framework, giao tiếp REST nội bộ. Các trang chính (Trang chủ, Lịch chiếu, Khuyến mãi, Giá vé, Giới thiệu) dùng dữ liệu runtime từ backend. Admin dashboard (mục “Khu vực quản trị”) là trung tâm CRUD.
+## 1. Kiến trúc & công nghệ
+- **Back-end**: Spring Boot 3, Java 21, Spring MVC, Spring Security, Spring Data JPA (SQL Server), REST API.
+- **Front-end**: Thymeleaf SSR + các bundle JS thuần (không dùng framework SPA). CSS tổng hợp trong `styles.css` và các file chuyên dụng như `seat-selection.css`, `staff-ui.css`, `admin.css`.
+- **CSDL**: Microsoft SQL Server. Tập tin `docs/insert sql.txt`, `docs/sample-movies.sql`, `docs/query-new-staff.sql` dùng để khởi tạo dữ liệu và kiểm thử.
+- **Tầng tích hợp**: PayOS VietQR (booking online & staff counter), SMTP gửi mail + PDF vé, lưu trữ tệp tĩnh tại thư mục `/uploads`.
+- **Build/Test**: Maven (`mvn -q test` mặc định sau mỗi chỉnh sửa), cấu hình VS Code/IntelliJ thông qua `.vscode/launch.json`.
 
-## 2. Chức năng chính
-### 2.1 CRUD phim (“CRUD phim” tab)
-- Thêm/sửa phim với thông tin chi tiết (tên, mô tả, thời lượng ≤ 900 phút, giới hạn tuổi, trailer, poster, embed YouTube).
-- Gán genre (checkbox dropdown sắp xếp A‑Z), đạo diễn, diễn viên.
-- Tự cân nhắc trạng thái dựa trên ngày khởi chiếu/ngừng chiếu: tự chuyển danh sách “Đang chiếu / Sắp chiếu / Ngừng chiếu” cho trang chủ.
-- Upload poster lưu dưới `/uploads/movies/…`.
-- Toast “Lưu thành công!” sau khi submit, tự cuộn lên đầu trang.
+## 2. Các mô-đun chức năng
 
-### 2.2 CRUD suất chiếu (“CRUD suất chiếu” tab)
-- Tạo suất chiếu với phim + phòng chiếu + giờ bắt đầu.
-- Tùy chọn “Tạo cho”: chỉ một ngày, cả tuần (7 ngày liên tiếp), ngày trong tuần (T2‑T6), cuối tuần (T7‑CN) hoặc tùy chỉnh bằng nút T2…CN.
-- Có thể lặp đến một ngày cụ thể (`repeatUntil`), hệ thống tính danh sách ngày và chặn trùng giờ (thông báo tiếng Việt).
-- Tự tính giá vé cơ bản dựa trên block thời gian (sáng/chiều/tối) & ngày (weekday/weekend) rồi nhân hệ số ghế khi clone seat snapshot.
-- Tự tạo suất chiếu hàng loạt, trả về danh sách kết quả. Bảng filter theo phim, phòng, trạng thái, từ/đến ngày, có phân trang.
+### 2.1 Trang web khách hàng
+- **Trang chủ & landing**: lấy dữ liệu phim “Đang chiếu”, “Sắp chiếu”, banner promo, combo ưu đãi và render qua Thymeleaf.
+- **Danh sách phim & chi tiết phim**: hiển thị poster, trailer YouTube, tóm tắt, rating, thời lượng, lịch chiếu; có bộ lọc theo ngày/phòng/định dạng.
+- **Đặt vé online**:
+  - `seat-selection.html` và `seat-selection.js` kết nối `/api/showtimes/{id}` để tải sơ đồ ghế snapshot theo từng suất, giữ ghế tối đa 10 phút (SeatHold).
+  - Cho phép combo đồ ăn, mã giảm giá, PayOS VietQR, tiền mặt/quầy.
+  - `ticket-view.html`, `ticket-email.html`, `ticket-pdf.html` dùng chung dữ liệu `Booking`.
+- **Tài khoản người dùng**:
+  - Đăng ký/đăng nhập bằng email, số điện thoại, mật khẩu.
+  - Trang `profile.html` cung cấp tab thông tin, lịch sử vé có phân trang (mỗi trang 10 vé).
+  - Cho phép đổi thông tin cá nhân, reset mật khẩu, quản lý thông báo.
 
-### 2.3 CRUD phòng chiếu (“CRUD phòng chiếu” tab)
-- Tạo/sửa/xóa phòng chiếu với tên + số hàng ghế + số ghế/hàng (giới hạn 1‑999).
-- Danh sách hiển thị tổng ghế, trạng thái (ON/OFF), filter theo tên & trạng thái.
-- Xóa có dialog xác nhận; nếu phòng đang được dùng (ràng buộc FK) sẽ báo lỗi “Không thể xóa phòng chiếu đang được sử dụng.”
-- Dữ liệu phòng chiếu được dùng cho dropdown của suất chiếu.
+### 2.2 Admin Workspace ( `/admin/*` )
+- **Quản lý phim**: CRUD đầy đủ (tên, tựa quốc tế, trailer, thể loại, đạo diễn, diễn viên, mô tả, thời lượng, độ tuổi, poster). Hỗ trợ upload hình ảnh (`/uploads/movies`), preview ngay sau khi chọn file.
+- **Quản lý suất chiếu**: lập lịch theo phim/phòng/khung giờ; các template tạo nhanh (từng ngày, cả tuần, ngày trong tuần, cuối tuần). Cho phép lặp đến ngày kết thúc và tự clone sơ đồ ghế với giá theo block (weekday/weekend + morning/afternoon/evening).
+- **Quản lý phòng chiếu**: định nghĩa tên, số hàng/cột, trạng thái kích hoạt. Có cảnh báo nếu phòng đang chứa suất chiếu hoạt động.
+- **Quản lý banner & khuyến mãi**: đặt thời gian hiệu lực, liên kết phim/URL, vị trí hiển thị. Danh sách hỗ trợ ON/OFF tự động theo ngày.
+- **Quản lý tài khoản & phân quyền**: staff, admin, marketing. Tất cả thao tác CRUD dùng fetch API, confirm dialog tiếng Việt, toast báo thành công/thất bại.
+- **Báo cáo**:
+  - Dashboard doanh thu tổng, theo phim, theo phòng thông qua `cinema-backend-revenue`.
+  - Xuất Excel (Apache POI `poi-ooxml`), biểu đồ hiển thị trên `admin-dashboard.html`.
 
-### 2.4 CRUD banner (“CRUD banner” tab)
-- Quản lý banner trang chủ với ảnh upload, liên kết (Movie hoặc URL), thứ tự hiển thị, ngày hiệu lực.
-- Khi chọn liên kết phim, preview card hiển thị poster + trạng thái (đã bỏ hiển thị ID).
-- Form validate thứ tự ≥ 1 và <= 100, ngày bắt đầu/kết thúc; các banner quá hạn tự chuyển trạng thái OFF.
-- Bảng danh sách hiển thị ON/OFF theo ngày, có nút sửa/xóa.
+### 2.3 Staff Portal ( `/staff/*` )
+- **Dashboard**: tuần lịch chiếu (7 ngày hiện tại), lọc nhanh theo phim, xem booking đang chờ và booking hôm nay. Các card liên kết tới quầy đặt vé với `showtimeId`.
+- **Counter Booking**:
+  - Trang `counter-booking.html` + `staff-booking.js` cho phép chọn phim/suất đang mở, xem occupancy, chọn ghế bằng seat fragment chung, tính tổng tiền.
+  - Panel “Thông tin khách hàng” tổng hợp số điện thoại, email, discount, phương thức thanh toán (Tiền mặt/Chuyển khoản).
+  - Khi chọn chuyển khoản, hệ thống tạo booking pending, gọi PayOS để sinh VietQR, poll trạng thái và mở link chi tiết `/staff/bookings/{code}` ngay khi thanh toán thành công.
+- **Pending/confirmation**:
+  - `booking-confirmation.html`, `booking-qr.html`, `pending-tickets.html`, `sold-tickets.html` phục vụ việc in vé, xem QR, xác nhận thanh toán.
+  - `staff-dashboard.js`, `staff-tickets.js`, `staff-scan.js` hỗ trợ tìm vé thủ công và tự động đọc QR (tự điền BookingCode vào trường nhập).
+- **QR Scan**: `/staff/qr-scan` dùng camera/ảnh, giải mã và tự fetch booking chi tiết, đồng thời auto điền form “Nhập mã thủ công”.
+- **Booking service phụ trợ**: `StaffBookingService`, `StaffShowtimeService`, `StaffBookingController`, `StaffPaymentController`, `StaffBookingVerificationController`.
 
-### 2.5 Giá vé & giới thiệu (trang public)
-- `ticket-prices.html`: Hardcode bảng giá, văn bản quy định & ảnh. Nav highlight mục “Giá vé”.
-- `about.html`: Tab “Giới thiệu” hiển thị mô tả tổ chức, thông tin liên hệ, ảnh, sơ đồ tổ chức; tabs “Dịch vụ/Phòng chiếu – Nhà hát” để trống cho tương lai.
+### 2.4 Các dịch vụ chung
+- **BookingService & SeatReservationService**: đảm bảo giữ ghế, giải phóng hold theo timer (task scheduled), kiểm tra trùng lặp, chuyển trạng thái booking (Pending → Paid → Confirmed → Cancelled).
+- **Payment**: PayOS (VietQR) + tiền mặt tại quầy. `TicketEmailService` gửi mail có PDF vé (OpenHTML2PDF + font Roboto hỗ trợ tiếng Việt).
+- **AuthService/AuthController**: xác thực người dùng, staff, admin với Spring Security, ghi log hoạt động.
+- **ProfileService/ProfileController**: cập nhật thông tin cá nhân, đổi mật khẩu, lấy lịch sử vé (phân trang `Pageable`).
+- **MovieService/ShowtimeService**: cung cấp dữ liệu public qua REST (đang chiếu, sắp chiếu, chi tiết theo ID, showtime theo ngày…).
 
-### 2.6 Xử lý auth & UI chung
-- Header/ Footer chung cho tất cả trang (component `fragments/header/footer`).
-- Auth gồm đăng ký, đăng nhập, quên mật khẩu; số điện thoại bắt buộc unique, tối đa 11 ký tự và kiểm tra numeric.
-- Các toast / confirm dialog dùng `admin-confirm.js`, `showSuccessToast` (định nghĩa ở `admin-movies.js`).
+## 3. Dữ liệu & sơ đồ CSDL
+- **Thực thể chính**:
+  - `Movie`, `Showtime`, `Auditorium`, `Seat`, `SeatSnapshot`, `Booking`, `BookingSeat`, `Promotion`, `Banner`, `User`, `Staff`, `PaymentLog`.
+  - `BookingStatus` (`Pending`, `PendingVerification`, `Confirmed`, `Cancelled`, `Refunded`), `PaymentStatus`, `PaymentMethodNormalizer` giữ đồng bộ tên phương thức.
+- **Seed & script**:
+  - `docs/insert sql.txt`, `docs/sample-movies.sql` thêm dữ liệu demo phim/suất/suất chiếu.
+  - `docs/query-new-staff.sql` hỗ trợ tạo staff nhanh.
+  - `docs/insert sql.txt` còn chứa script cập nhật status phim quá hạn showtime → “Hết chiếu”.
+- **Quy tắc dữ liệu**:
+  - Poster/Banner được lưu theo UUID trong `uploads/movies` hoặc `uploads/banners`.
+  - Seat snapshot lưu giá ghế, row/column label, cho phép đổi giá theo thời gian (không ảnh hưởng các booking cũ).
+  - Tự động cập nhật trạng thái phim/banners dựa trên ngày chiếu/ngày hiệu lực.
 
-### 2.7 Cải tiến UI admin gần đây
-- Bổ sung script `admin-action-menu.js` để mọi danh sách CRUD dùng chung menu ba chấm (Sửa / Kích hoạt hoặc Vô hiệu hóa / Xóa), giúp thao tác gọn gàng và đồng bộ.
-- Các bảng (phim, suất chiếu, phòng chiếu, banner, khuyến mãi, tài khoản) đều được sắp chữ cái theo tên bằng `Intl.Collator("vi")`, dễ tra cứu hơn.
-- Khi xóa phim hoặc phòng chiếu đang còn suất chiếu, hệ thống hiển thị pop-up tiếng Việt giải thích cần xóa/chuyển suất chiếu trước (thay vì lỗi FK khó hiểu).
+## 4. Luồng nghiệp vụ tiêu biểu
+1. **Đặt vé trực tuyến** (khách):
+   - Người dùng chọn phim/suất → `seat-selection.js` tải sơ đồ ghế → chọn ghế + thông tin liên hệ → PayOS tạo VietQR → webhook xác nhận → gửi email + PDF.
+2. **Đặt vé tại quầy** (staff):
+   - Staff chọn suất từ dashboard hoặc filter → `counter-booking` hiển thị ghế, tính tổng, nhập dữ liệu khách → tạo booking.
+   - Nếu chuyển khoản, hệ thống tạo VietQR và poll; nếu tiền mặt, staff nhận tiền và nhấn “Xác nhận tạo vé” → booking confirmed → in vé.
+3. **Quản trị nội dung** (admin):
+   - Admin đăng nhập `/admin/workspace`, sử dụng các tab CRUD để cập nhật phim/suất/banners/phòng.
+   - Thao tác xóa đều có confirm dialog; khi dữ liệu đang được dùng, hệ thống báo rõ nguyên nhân.
+4. **Báo cáo doanh thu**:
+   - Module `cinema-backend-revenue` đọc dữ liệu booking và hiển thị biểu đồ, đồng thời có CRUD phụ để tổng hợp doanh thu theo phim, phòng, ngày.
 
-## 3. Workflow tổng quan
-1. **Khởi động**: `mvn spring-boot:run`. Database SQL Server (schema script `docs/sql.txt`, seed `docs/insert sql.txt`). Nhớ ALTER `Auditoriums` thêm `NumberOfRows/Columns`.
-2. **Frontend**: truy cập `/` để xem trang khách. `/admin/dashboard` hiển thị báo cáo doanh thu; `/admin/workspace` cho admin thao tác CRUD.
-3. **Quy trình tạo nội dung**:
-   - Tạo phòng chiếu → suất chiếu (tự clone seat snapshot) → banner → phim.
-   - Tính năng lặp suất chiếu tiết kiệm thao tác mass scheduling.
-4. **Upload file**: Poster & banner lưu trong `/uploads/...` (đảm bảo cấu hình quyền ghi khi deploy).
-5. **Quản lý dữ liệu**: Tất cả CRUD dùng REST `/api/admin/**`. JS fetch data, hiển thị, xử lý validation/client toast. Các bản ghi xóa yêu cầu confirm.
+## 5. Hướng dẫn chạy & triển khai
+1. **Chuẩn bị**: cài Java 21, Maven 3.9+, SQL Server. Tạo DB và chạy script `docs/insert sql.txt` (bao gồm DDL/DML) + các file mẫu nếu cần thêm dữ liệu.
+2. **Cấu hình**: chỉnh `application.properties` cho URL, user, password của SQL Server và thông số PayOS/SMTP. Đảm bảo thư mục `uploads` có quyền ghi.
+3. **Chạy**:
+   ```bash
+   mvn -q test        # kiểm tra nhanh
+   mvn spring-boot:run
+   ```
+   Ứng dụng lắng nghe cổng 8080. Truy cập `/` cho client, `/admin/workspace` cho admin, `/staff/dashboard` cho staff.
+4. **Build & deploy**:
+   ```bash
+   mvn -q -DskipTests package
+   java -jar target/cinema-backend-*.jar
+   ```
+   Sử dụng profile môi trường qua `--spring.profiles.active=prod`.
 
-## 4. Điểm kỹ thuật nổi bật
-- **Spring Boot + REST + Specification** cho filter/lazy paging.
-- **Thymeleaf** render SSR + JS thuần, không framework nặng.
-- **Seat snapshot**: tạo bản sao ghế theo suất chiếu với giá ghế = basePrice * multiplier.
-- **Tự động trạng thái**: phim và banner cập nhật ON/OFF dựa vào ngày; suất chiếu check trùng giờ, lặp theo preset.
-- **I18N**: thông báo lỗi/confirm tiếng Việt.
+## 6. Quy ước phát triển
+- Tất cả file mã nguồn lưu UTF-8 (không BOM). Các chuỗi hiển thị tiếng Việt phải qua i18n hoặc literal rõ ràng, tránh ký tự lỗi.
+- Khi sửa code: `git status -sb` để theo dõi thay đổi; luôn chạy `mvn -q test`.
+- JavaScript: ưu tiên `fetch` + async/await, đóng gói logic vào module tương ứng (`admin-*.js`, `staff-*.js`, `seat-selection.js`, `auth.js`).
+- CSS: bố trí trong file tương ứng (không nhúng inline trừ layout đặc biệt). Assets font (`Roboto`) lưu trong `src/main/resources/fonts`.
+- Không thay đổi dữ liệu seed trong `docs` nếu không cập nhật tài liệu này.
 
-## 5. Hướng dẫn bàn giao cho team
-1. Clone repo, cài Java 17+, SQL Server.
-2. Chạy scripts trong `docs/sql.txt` rồi `docs/insert sql.txt`. Nếu đã có DB, nhớ ALTER bảng `Auditoriums`.
-3. `mvn -q -DskipTests package` để chắc chắn build ok.
-4. Deploy theo profile mặc định (`application.properties`).
-5. Admin dashboard là công cụ duy nhất để team nhập dữ liệu demo/production.
+## 7. Công việc tương lai gợi ý
+1. Chuẩn hóa bài toán giữ ghế & đồng bộ PayOS trên cả trang client và staff (giảm yêu cầu poll).
+2. Bổ sung unit test/service test cho `BookingService`, `SeatReservationService` và layer PayOS.
+3. Xây dựng trang báo cáo doanh thu liên hợp (backend chính + module revenue) để staff không phải chuyển hệ thống.
+4. Tối ưu hoá các truy vấn showtime/movies bằng view hoặc stored procedure trong SQL Server khi số lượng dữ liệu lớn.
 
-Với file này, mọi người sẽ nắm được các module chính và cách vận hành khi nhận dự án. Chúc team merge suôn sẻ! :)
-### 2.8 Checkout VietQR (PayOS)
-- Quy trinh thanh toan tach khoi modal cu, nut `Thanh toan` tren seat-picker chuyen nguoi dung den `/checkout/{showtimeId}?token=...` va render bang Thymeleaf.
-- Trang checkout goi `/api/payment/payos/checkout` ngay khi load de xin QR, hien thong tin PayOS, dem nguoc thoi gian giu ghe va poll trang thai booking truoc khi redirect `/movies/confirmation/{bookingCode}`.
-- Khi user refresh/roi trang hoac quay lai chon ghe, booking cho va hold cu duoc huy/giai phong de tranh giu ghe khong can thiet.
+---
 
-## 6. Prompt cho lần trò chuyện kế tiếp
-Anh/chị trợ lý kế tiếp cần nắm rõ các điểm sau để tiếp tục làm việc:
+Tài liệu này giúp mọi thành viên nhanh chóng nắm bắt phạm vi chức năng, công nghệ và quy trình làm việc hiện tại của Cinema HUB. Hãy cập nhật file nếu có module mới hoặc thay đổi kiến trúc đáng kể.
 
-1. **Seat picker & hold logic**
-   - `seat-selection.js` hiện đã bỏ giới hạn 6 ghế; biến `maxSelection` có thể bằng 0 để hiểu là “không giới hạn”.
-   - UI khởi động timer 10 phút ngay khi khay ghế mở và phải giữ đồng bộ với backend (server là nguồn chân lý về `expiresAt`).
-   - Backend (`SeatReservationService.holdSeats`) cho phép giữ lại `expiresAt` cũ khi client gửi `previousHoldToken`, nhưng hiện chúng ta đã chuyển về cơ chế chỉ cho một phiên duy nhất/10 phút.
-   - Đã vá lỗi “Phiên giữ ghế đã hết hạn” bằng cách hạn chế client chỉ gửi một request `/api/showtimes/{id}/holds` tại một thời điểm (biến `holdSyncInFlight`, `holdSyncPending`, `lastSyncedSeatKey`). Nếu cần thay đổi thêm, phải đảm bảo không xóa hold cũ trước khi hold mới thành công.
-
-2. **PayOS Checkout**
-   - `/checkout/{showtimeId}` tải QR qua `/api/payment/payos/checkout` và poll webhook `/api/payment/webhook`. PayOS trả trạng thái qua webhook → `PaymentService` phát hành vé, gửi email (HTML/PDF từ `ticket-pdf.html`).
-   - PDF đã được viết lại theo XHTML để OpenHTML2PDF không lỗi; tiếp tục dùng font có hỗ trợ tiếng Việt không dấu.
-
-3. **Nhiệm vụ mong đợi cho phiên tới (gợi ý)**
-   - Kiểm thử thủ công seat picker để chắc chắn timer không reset vô cớ, giữ ghế đúng 10 phút và giải phóng khi rời trang.
-   - Nếu phát sinh lỗi mới (ví dụ load ghế bị 400, hoặc PayOS không redirect), cần kiểm tra `SeatReservationService`, `seat-selection.js`, `PaymentService` và log PayOS webhook.
-
-> Prompt mẫu cho phiên tiếp theo:
-```
-Bạn đang làm việc trên Cinema HUB (Spring Boot + Thymeleaf). Seat picker (`seat-selection.js`) vừa được sửa để bỏ giới hạn 6 ghế và dùng cơ chế đồng bộ hold một lần trong 10 phút. Hãy kiểm tra thực tế việc chọn nhiều ghế liên tiếp, đảm bảo API `/api/showtimes/{id}/holds` không trả 400 nữa và phần timer hiển thị đúng thời gian còn lại. Nếu phát hiện lỗi hãy mô tả rõ bước tái hiện và sửa cả frontend/backend cần thiết. Luôn chạy `mvn -q test` sau khi chỉnh.
-```
-
-Nhờ ghi nhớ các file trọng tâm: `src/main/resources/static/seat-selection.js`, `SeatHoldRequest`, `SeatReservationService`, `seat-selection.html`, `ticket-pdf.html`.***
+**IMPORTANT* dự án chạy phải trên 1 server, vd thuê cloudflare dùng localhost thay server mình mới chạy được thanh toán payos

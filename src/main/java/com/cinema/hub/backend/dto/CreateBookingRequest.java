@@ -17,6 +17,8 @@ public class CreateBookingRequest {
     @Min(1)
     private Integer userId;
 
-    @NotBlank
     private String paymentMethod;
+
+    @Min(1)
+    private Integer createdByStaffId;
 }

@@ -1,6 +1,5 @@
 package com.cinema.hub.backend.service;
 
-import com.cinema.hub.backend.dto.common.PageResponse;
 import com.cinema.hub.backend.dto.profile.ChangePasswordRequestDto;
 import com.cinema.hub.backend.dto.profile.UpdateProfileRequestDto;
 import com.cinema.hub.backend.dto.profile.UserProfileDto;
@@ -62,11 +61,9 @@ public class ProfileService {
         userAccountRepository.save(user);
     }
 
-    public PageResponse<BookingHistoryView> getBookingHistory(Integer userId, int page, int size) {
+    public List<BookingHistoryView> getBookingHistory(Integer userId) {
         UserAccount user = findUser(userId);
-        int safePage = Math.max(page, 0);
-        int safeSize = Math.min(Math.max(size, 1), 10);
-        return bookingService.getBookingHistory(user, safePage, safeSize);
+        return bookingService.getBookingHistory(user);
     }
 
     private UserAccount findUser(Integer userId) {
